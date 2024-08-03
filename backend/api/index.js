@@ -143,7 +143,7 @@ app.post("/bookslot", authenticateToken, async (req, res) => {
   const parkingId = req.body.parkingId;
   const userId = req.body.userId;
   try {
-    await db.query("INSERT INTO Pslots(parkingId,userId) values($1,$2)", [
+    await db.query("INSERT INTO Parking_lot(parkingId,userId) values($1,$2)", [
       parkingId,
       userId,
     ]);
@@ -156,3 +156,43 @@ app.post("/bookslot", authenticateToken, async (req, res) => {
 app.listen(port, () => {
   console.log("Server started on port " + port);
 });
+
+
+// ---------------------------------------------------------------------------
+
+app.get("/get_all_slots", authenticateToken, async(req, res) => {
+    await db.query("SELECT * FROM Parking_lot", (error, results) => {
+        if(error){
+            throw error
+        }
+        res.status(200).json(results.row)
+    });
+})
+
+app.get("/get_slot_by_location", authenticateToken, async(req, res) => {
+    await db.query("SELECT * FROM Parking_lot WHERE location_id = ($1)", 
+        [req.body.locationId],
+        (errors, results) =>{
+            if(error) throw error
+            res.status(200).json(results.row)
+        }
+    );
+})
+
+app.put("/updateslot", authenticateToken, async(req, res) => {
+    await db.query("UPDATE Parking_lot SET available_slots=$1 isOpen=$2 WHERE id=$3", 
+        [req.body.available_slots, req.body.isOpen, req.body.pslotId],
+    (errors, results) =>{
+        if(errors) res.status(500).json({"error": "Unable to update"});
+        res.status(200).json({"msg": "Updated!"})
+    })
+})
+
+app.post("/createslot", authenticateToken, async(req, res) => {
+    await db.query("INSERT INTO Parking_lot VALUES($1, $2, $3, $4, $5, $6)", 
+    [req.body.lot_id, req.body.lot_name, req.body.location_id, req.body.total_slots, 
+    req.body.vacant_slots, req.body.total_revenue],
+    (errors, results) => {
+        if(errors) res.status(500).json({"error": "Unable to insert"})
+    })
+})
