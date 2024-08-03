@@ -184,15 +184,60 @@ app.put("/updateslot", authenticateToken, async(req, res) => {
         [req.body.available_slots, req.body.isOpen, req.body.pslotId],
     (errors, results) =>{
         if(errors) res.status(500).json({"error": "Unable to update"});
-        res.status(200).json({"msg": "Updated!"})
+        res.status(301).json({"msg": "Updated!"})
     })
 })
 
 app.post("/createslot", authenticateToken, async(req, res) => {
-    await db.query("INSERT INTO Parking_lot VALUES($1, $2, $3, $4, $5, $6)", 
-    [req.body.lot_id, req.body.lot_name, req.body.location_id, req.body.total_slots, 
+    await db.query("INSERT INTO Parking_lot VALUES($1, $2, $3, $4, $5)", 
+    [req.body.lot_name, req.body.location_id, req.body.total_slots, 
     req.body.vacant_slots, req.body.total_revenue],
     (errors, results) => {
         if(errors) res.status(500).json({"error": "Unable to insert"})
+        res.status(201).json({"msg": "Created slot!", "data": results.rows})
+    })
+})
+
+// -----------------------------------
+// Parking Session APIs
+
+app.post("/createSession", authenticateToken, async(req, res) => {
+    await db.query("INSERT INTO ParkingSession(vehicle_id, session_active, start_time, end_time, lot_id) VALUES($1, $2, $3, $4, $5)",
+    [req.body.vehicleNumber, req.body.sessionActive, Date.now()/1000, null, req.body.lot_id],
+    (errors, results) =>{
+        if(errors) res.status(500).json({"error": "Unable to create session", "err": errors})
+        res.status(201).json({"msg": "Created Slot!", "data": results.rows})
+    })
+})
+
+
+app.put("/endSession", authenticateToken, async(req, res) => {
+    await db.query("UPDATE ParkingSession SET session_active = $1, end_time = $2 WHERE session_id=$3", 
+    [req.body.sessionActive, req.body.endTime, req.body.sessionId],
+    (errors, results) => {
+        if(errors) res.status(500).json({"error": "Unable to end session"})
+        res.status(201).json({"msg": "Ended session"})
+    }
+}))
+
+
+// -----------------------------------
+
+app.post("/addedMasterDevice", authenticateToken, async(req, res) => {
+    await db.query("INSERT INTO MasterDevice VALUES($1, $2)",
+    [req.body.masterMac, req.body.lotId],
+    (errors, results) => {
+        if(errors) res.status(500).json({"error": "Unable to add device", "err": errors})
+        res.status(201).json({"msg": "Added new device", ""})
+    })
+})
+
+
+app.post("/addedSlaveDevice", authenticateToken, async(req, res) => {
+    await db.query("INSERT INTO SlaveDevice VALUES($1, $2)",
+    [req.body.slave_mac, req.body.master_mac],
+    (errors, results) =>{
+        if(errors) res.status(500).json({"error": "Unable to add slave device", "err": errors})
+        res.status(201).json({"msg": "Slave device added", "data": results.rows})
     })
 })
