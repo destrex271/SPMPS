@@ -2,15 +2,7 @@ import pg from "pg";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
-const db = new pg.Client({
-  user: "postgres",
-  password: "admin",
-  port: 5432,
-  host: "localhost",
-  database: "spms",
-});
-
-db.connect();
+import { db } from "./common.js"; 
 
 const secretKey = "secretkey";
 

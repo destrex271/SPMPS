@@ -33,7 +33,7 @@ const authenticateToken = (req, res, next) => {
 app.post("/register", async (req, res) => {
   const username = req.body.username;
   const password = req.body.password;
-  const response = await registerUser(username, password, db)
+  const response = await registerUser(username, password)
   res.json(response)
 });
 
