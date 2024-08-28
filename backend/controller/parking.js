@@ -1,6 +1,22 @@
-import { db, secretKey, saltRounds } from "./common";
+import pg from "pg";
 
-const bookSlot = async (parkingId, userId) => {
+
+const db = new pg.Client({
+    user: "postgres",
+    password: "admin",
+    port: 5432,
+    host: "localhost",
+    database: "spms",
+  });
+
+db.connect();
+
+const secretKey = "secretkey";
+
+const saltRounds = 10;
+  
+
+export const bookSlot = async (parkingId, userId) => {
     try {
 
         const slotCount = await db.query("SELECT vacant from Parking_lot where parkingID=$1", [parkingId])
@@ -22,7 +38,7 @@ const bookSlot = async (parkingId, userId) => {
       }
 }
 
-const getSlots = async () => {
+export const getSlots = async () => {
     try{
         const data = await db.query("SELECT * FROM Parking_lot")
         return {"status": 200, "data": data.rows}
@@ -31,7 +47,7 @@ const getSlots = async () => {
     }
 }
 
-const getSlotsByLocation = async (locationID) => {
+export const getSlotsByLocation = async (locationID) => {
     try{
         const data = db.query("SELECT * FROM Parking_lot WHERE location_id = ($1)", [locationID])
         return {"status": 200, "data": data.rows}
@@ -40,7 +56,7 @@ const getSlotsByLocation = async (locationID) => {
     }
 }
 
-const updateSlot = async (req) => {
+export const updateSlot = async (req) => {
     try{
         const data = await db.query("UPDATE Parking_lot SET available_slots=$1 isOpen=$2 WHERE id=$3", 
             [req.body.available_slots, req.body.isOpen, req.body.pslotId])
@@ -50,7 +66,7 @@ const updateSlot = async (req) => {
     }
 }
 
-const createSlot = async(req) => {
+export const createSlot = async(req) => {
     try{
         const data = await db.query("INSERT INTO Parking_lot VALUES($1, $2, $3, $4, $5)", 
         [req.body.lot_name, req.body.location_id, req.body.total_slots, 
@@ -61,4 +77,4 @@ const createSlot = async(req) => {
     }
 }
 
-module.exports = {bookSlot, getSlots, getSlotsByLocation, updateSlot, createSlot}
+// module.exports = {bookSlot, getSlots, getSlotsByLocation, updateSlot, createSlot}

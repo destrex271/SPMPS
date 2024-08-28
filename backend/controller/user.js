@@ -1,10 +1,23 @@
 import pg from "pg";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { db, secretKey, saltRounds } from "./common";
+
+const db = new pg.Client({
+  user: "postgres",
+  password: "admin",
+  port: 5432,
+  host: "localhost",
+  database: "spms",
+});
+
+db.connect();
+
+const secretKey = "secretkey";
+
+const saltRounds = 10;
 
 
-const registerUser = async (username, password) => {
+export const registerUser = async (username, password) => {
     // const username = req.body.username;
     // const password = req.body.password;
   
@@ -31,7 +44,7 @@ const registerUser = async (username, password) => {
     }
 };
 
-const loginUser = async (username, password) => {
+export const loginUser = async (username, password) => {
     try {
         const result = await db.query("SELECT * FROM users WHERE username = $1", [
           username,
@@ -62,7 +75,7 @@ const loginUser = async (username, password) => {
       }
 }
 
-const updateUser = async (username, oldPassword, newPassword) => {
+export const updateUser = async (username, oldPassword, newPassword) => {
     try {
         const response = await db.query("SELECT * from users where username = $1", [
           username,
@@ -99,7 +112,7 @@ const updateUser = async (username, oldPassword, newPassword) => {
       }
 }
 
-const authenticateToken = (req, res, next) => {
+export const authenticateToken = (req, res, next) => {
     const token = req.headers["authorization"];
     console.log(token);
     if (!token) return res.sendStatus(403);
@@ -111,4 +124,4 @@ const authenticateToken = (req, res, next) => {
     });
   };
 
-module.exports = {registerUser, authenticateToken, loginUser, updateUser}
+// module.exports = {registerUser, authenticateToken, loginUser, updateUser}

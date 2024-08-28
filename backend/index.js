@@ -1,17 +1,33 @@
 import express from "express";
 import bodyParser from "body-parser";
-import { loginUser, registerUser, updateUser } from "../controller/user";
-import { bookSlot, getSlots, getSlotsByLocation, updateSlot, createSlot} from "../controller/parking";
-import {createSession, endSession} from '../controller/devices'
+import { loginUser, registerUser, updateUser } from "./controller/user.js";
+import { bookSlot, getSlots, getSlotsByLocation, updateSlot, createSlot} from "./controller/parking.js";
+import {createSession, endSession} from './controller/devices.js'
+import swaggerUi from 'swagger-ui-express'
+import swaggerFile from './swagger_output.json' with {type: 'json'};
+
 
 const port = 3000;
 const app = express();
 
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use('/doc', swaggerUi.serve, swaggerUi.setup(swaggerFile))
 
 app.get("/", (req, res) => {
   res.json("Welcome to SPMS");
 });
+
+const authenticateToken = (req, res, next) => {
+  const token = req.headers["authorization"];
+  console.log(token);
+  if (!token) return res.sendStatus(403);
+
+  jwt.verify(token, secretKey, (err, user) => {
+    if (err) return res.sendStatus(403);
+    req.user = user;
+    next();
+  });
+};
 
 // User APIs
 app.post("/register", async (req, res) => {
