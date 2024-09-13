@@ -1,10 +1,8 @@
-import pg from "pg";
-export const db = new pg.Client({
-    user: "postgres",
-    password: "admin",
-    port: 5432,
-    host: "localhost",
-    database: "spms",
-  });
-  
-  db.connect();
+
+import { neon } from '@neondatabase/serverless';
+
+const db = neon('postgresql://capstone2024_owner:unDWCG8wVZ4N@ep-morning-wind-a6hz097f.us-west-2.aws.neon.tech/capstone2024?sslmode=require');
+
+const pg_version = await db('SELECT version()');
+console.log(pg_version)
+export { db };
