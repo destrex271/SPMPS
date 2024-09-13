@@ -104,17 +104,17 @@ app.get("/get_all_slots", authenticateToken, async(req, res) => {
 })
 
 app.get("/get_slot_by_location", authenticateToken, async(req, res) => {
-    const data = getSlotsByLocation(req.body.locationID)
+    const data = await getSlotsByLocation(req.body.pincode)
     res.json(data)
 })
 
 app.put("/updateslot", authenticateToken, async(req, res) => {
-    const data = updateSlot(req)
+    const data = await updateSlot(req)
     res.json(data)
 })
 
 app.post("/createslot", authenticateToken, async(req, res) => {
-    const data = createSlot(req)
+    const data = await createSlot(req)
     res.json(data)
 })
 

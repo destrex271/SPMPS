@@ -25,7 +25,7 @@ export const bookSlot = async (parkingId, userId) => {
 export const getSlots = async () => {
     try{
         console.log("Getting data....")
-        const data = await db("SELECT * FROM Parking_lot")
+        const data = await db("SELECT * FROM Parking_lot INNER JOIN PLocation ON Plocation.location_id = Parking_lot.location_id")
         console.log("got -> ", data)
         return {"status": 200, "data": data}
     }catch(err){
@@ -34,10 +34,10 @@ export const getSlots = async () => {
 }
 
 export const getSlotsByLocation = async (pincode) => {
+    console.log(pincode)
     try{
         console.log("Getting data....")
-        const data = await db("SELECT * FROM Parking_lot WHERE pincode = ($1)", [pincode])
-        console.log("Got data : ", data)
+        const data = await db("SELECT * FROM Parking_lot INNER JOIN PLocation ON Plocation.location_id = Parking_lot.location_id  WHERE pincode = ($1)", [pincode])
         return {"status": 200, "data": data}
     }catch(err){
         return {"status": 500, "msg": err}
