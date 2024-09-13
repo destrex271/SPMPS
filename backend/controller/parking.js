@@ -1,10 +1,5 @@
 import { db } from './common.js'
 
-const secretKey = "secretkey";
-
-const saltRounds = 10;
-  
-
 export const bookSlot = async (parkingId, userId) => {
     try {
 
