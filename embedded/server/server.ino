@@ -1,6 +1,8 @@
 #include <LittleFS.h>
 
 #include <WiFi.h>
+#include <HTTPClient.h>
+#include <base64.h>  // Ensure this library is included for base64 encoding
 #include <ESPAsyncWebServer.h>
 #include <vector>
 #include "SPIFFS.h"
@@ -33,6 +35,13 @@ void setup() {
     return;
   }
 
+  WiFi.begin("motoedge50fusion_1771", "yebt3925");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("Connected to WiFi");
+
   // Initialize Soft AP
   // WiFi.softAP(ssid, password);
   WiFi.softAP(ssid);
@@ -55,7 +64,14 @@ void setup() {
     request->send(SPIFFS, "/index.html", String(), false, processor);
   });
 
-  
+  server.on("/capture_data", HTTP_GET, [](AsyncWebServerRequest *request){
+     String base64Image = sendRequest_Capture("https://miro.medium.com/v2/resize:fit:1400/1*qre-gAVNTuazaUPvNw2w-Q.jpeg");
+     Serial.println("Got image -> ");
+     Serial.println(base64Image.length());
+      if (base64Image.length() > 0) {
+        sendImageToApi("{API_URL}", base64Image);
+      }
+  });  
 
   // Serve the connected devices page
   server.on("/show_devices", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -100,32 +116,118 @@ String processor(const String& var){
   return "OK";
 }
 
-// Handle showing connected devices
-// void handle_ShowDevices(AsyncWebServerRequest *request) {
-//   String deviceList = "<!DOCTYPE html><html>\n";
-//   deviceList += "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no\">\n";
-//   deviceList += "<title>Connected Devices</title>\n";
-//   deviceList += "<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}\n";
-//   deviceList += "body{margin-top: 50px;} h1 {color: #444444;margin: 50px auto 30px;} h3 {color: #444444;margin-bottom: 50px;}\n";
-//   deviceList += "table {width: 100%; border-collapse: collapse; margin: 20px 0;}\n";
-//   deviceList += "th, td {padding: 10px; text-align: left; border-bottom: 1px solid #ddd;}\n";
-//   deviceList += "</style>\n";
-//   deviceList += "</head>\n";
-//   deviceList += "<body>\n";
-//   deviceList += "<h1>Connected Devices</h1>\n";
-//   deviceList += "<table>\n";
-//   deviceList += "<tr><th>IP Address</th><th>Action</th></tr>\n";
+String sendRequest_Capture(String endpoint_url) {
+  HTTPClient http;
+  http.begin(endpoint_url);
 
-//   // Display stored MAC addresses and IP addresses
-//   for (const ConnectedDevice& device : connectedDevices) {
-//     deviceList += "<tr><td>" + device.ipAddress + "</td><td><button ></button></td></tr>\n";
+  int httpResponseCode = http.GET();
+  String base64Image = "";
+
+  if (httpResponseCode == HTTP_CODE_OK) {
+    WiFiClient* stream = http.getStreamPtr();
+    String base64String = "";
+    while (stream->available()) {
+      uint8_t buffer[128];
+      size_t bytesRead = stream->readBytes(buffer, sizeof(buffer));
+      if (bytesRead == 0) {
+        Serial.println("Error: Stream read failed.");
+        break;
+      }
+      base64String += base64::encode(buffer, bytesRead);
+    }
+    base64Image = base64String;
+    Serial.println("Image captured and base64 encoded");
+  } else {
+    Serial.println("Error: " + String(httpResponseCode));
+  }
+
+  http.end();
+  return base64Image;
+}
+
+void sendImageToApi(String uploadUrl, const String& base64Image) {
+  HTTPClient http;
+  http.begin(uploadUrl);
+  http.addHeader("Content-Type", "application/json");
+
+  String payload = "{\n";
+  payload += "  \"contents\": [{\n";
+  payload += "    \"parts\": [\n";
+  payload += "      {\"text\": \"Conduct ANPR on the given image and just give me the License plate number.\"},\n";
+  payload += "      {\"fileData\": {\n";
+  payload += "        \"mimeType\": \"image/jpeg\",\n";
+  payload += "        \"data\": \"" + base64Image + "\"\n";
+  payload += "      }}\n";
+  payload += "    ]\n";
+  payload += "  }]\n";
+  payload += "}\n";
+
+  int httpResponseCode = http.POST(payload);
+
+  if (httpResponseCode > 0) {
+    String response = http.getString();
+    Serial.println("Response code: " + String(httpResponseCode));
+    Serial.println("Response: " + response);
+  } else {
+    Serial.println("Error code: " + String(httpResponseCode));
+  }
+
+  http.end();
+}
+
+// String sendRequest_Capture(String endpoint_url){
+//   HTTPClient http;
+//   http.begin(endpoint_url);
+
+//   int httpResponseCode = http.GET();
+//   String base64Image = "";
+
+//   if (httpResponseCode == HTTP_CODE_OK) {
+//     WiFiClient* stream = http.getStreamPtr();
+//     String base64String = "";
+//     while (stream->available()) {
+//       uint8_t buffer[128];
+//       size_t bytesRead = stream->readBytes(buffer, sizeof(buffer));
+//       base64String += base64::encode(buffer, bytesRead);
+//     }
+//     base64Image = base64String;
+//     Serial.println("Image captured and base64 encoded");
+//   } else {
+//     Serial.println("Error: " + String(httpResponseCode));
 //   }
 
-//   deviceList += "</table>\n";
-//   deviceList += "</body>\n";
-//   deviceList += "</html>\n";
+//   http.end();
+//   return base64Image;
+// }
 
-//   request->send(200, "text/html", deviceList);
+// void sendImageToApi(String uploadUrl, const String& base64Image) {
+//   HTTPClient http;
+//   http.begin(uploadUrl);
+//   http.addHeader("Content-Type", "application/json");
+
+//   String payload = "{\n";
+//   payload += "  \"contents\": [{\n";
+//   payload += "    \"parts\": [\n";
+//   payload += "      {\"text\": \"Conduct ANPR on the given image and just give me the License plate number.\"},\n";
+//   payload += "      {\"inline_data\": {\n";
+//   payload += "        \"mime_type\": \"image/png\",\n";
+//   payload += "        \"data\": \"" + base64Image + "\"\n";
+//   payload += "      }}\n";
+//   payload += "    ]\n";
+//   payload += "  }]\n";
+//   payload += "}\n";
+
+//   int httpResponseCode = http.POST(payload);
+
+//   if (httpResponseCode > 0) {
+//     String response = http.getString();
+//     Serial.println("Response code: " + String(httpResponseCode));
+//     Serial.println("Response: " + response);
+//   } else {
+//     Serial.println("Error code: " + String(httpResponseCode));
+//   }
+
+//   http.end();
 // }
 
 void handle_ShowDevices(AsyncWebServerRequest *request) {
@@ -140,7 +242,7 @@ void handle_ShowDevices(AsyncWebServerRequest *request) {
   deviceList += "<script>\n";
   deviceList += "function callCapture(ip) {\n";
   deviceList += "  fetch('http://' + ip + '/capture')\n";
-  deviceList += "    .then(response => response.text())\n";
+  deviceList += "    .then(response => response.json())\n";
   deviceList += "    .then(data => alert('Capture initiated for ' + ip));\n";
   deviceList += "}\n";
   deviceList += "</script>\n";
