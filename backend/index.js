@@ -1,10 +1,11 @@
 import express from "express";
 import bodyParser from "body-parser";
-import { loginUser, registerUser, updateUser, authenticateToken } from "./controller/user.js";
+import { loginUser, registerUser, updateUser, authenticateToken, loginUserWithEmail } from "./controller/user.js";
 import { bookSlot, getSlots, getSlotsByLocation, updateSlot, createSlot} from "./controller/parking.js";
 import {createSession, endSession} from './controller/devices.js'
 import swaggerUi from 'swagger-ui-express'
 import swaggerFile from './swagger_output.json' with {type: 'json'};
+import cors from 'cors'
 import jwt from 'jsonwebtoken'
 
 const secretKey = "secretkey";
@@ -14,6 +15,7 @@ const saltRounds = 10
 const port = 3000;
 const app = express();
 
+app.use(cors())
 app.use('/doc', swaggerUi.serve, swaggerUi.setup(swaggerFile))
 
 app.use(bodyParser.urlencoded({
@@ -56,8 +58,14 @@ app.post("/register", async (req, res) => {
 
 app.post("/login", async (req, res) => {
   const username = req.body.username;
+  const email = req.body.email;
   const loginPassword = req.body.password;
-  const data = await loginUser(username, loginPassword)
+  let data
+  if(username != undefined){
+    data = await loginUser(username, loginPassword)
+  }else{
+    data = await loginUserWithEmail(email, loginPassword)
+  }
   res.json(data)
 });
 

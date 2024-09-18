@@ -60,6 +60,35 @@ export const loginUser = async (username, password) => {
   }
 };
 
+export const loginUserWithEmail = async (email, password) => {
+  try {
+      // Fetch the user from the database
+      const result = await db("SELECT * FROM vehicleowner WHERE email = $1", [email]);
+      
+      if (result.length > 0) {
+          const user = result[0];
+          const storedHashedPassword = user.passwd;
+
+          // Compare passwords
+          const match = await bcrypt.compare(password, storedHashedPassword);
+          
+          if (match) {
+              // Generate a JWT token
+              const token = jwt.sign({ username: user.username }, secretKey, { expiresIn: "1h" });
+              return { status: 200, message: "Login Success!", token, first_name: user['first_name'], last_name: user['last_name'], mob_no: user['mobile_number']};
+          } else {
+              return { status: 400, message: "Invalid password" };
+          }
+      } else {
+          return { status: 404, message: "User not found" };
+      }
+  } catch (err) {
+      console.error("Error during login:", err);
+      return { status: 500, message: "Internal Server Error" };
+  }
+};
+
+
 export const updateUser = async (username, oldPassword, newPassword) => {
   try {
       // Fetch user from the database
