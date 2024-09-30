@@ -33,21 +33,37 @@ export const getSlots = async () => {
     }
 }
 
-export const getSlotsByLocation = async (pincode) => {
-    console.log(pincode)
+export const getSlotsByLocation = async (pincode, latitude, longitude, radius) => {
+    console.log(pincode, latitude, longitude, radius)
     try{
+        if(!latitude || !longitude){
+            let dt = await db("SELECT * FROM Plocation WHERE pincode=$1", [pincode]);
+            return {"status": 200, "data": dt}
+        }
+        let longi = parseFloat(longitude)
+        let lat = parseFloat(latitude)
         console.log("Getting data....")
-        const data = await db("SELECT * FROM Parking_lot INNER JOIN PLocation ON Plocation.location_id = Parking_lot.location_id  WHERE pincode = ($1)", [pincode])
-        return {"status": 200, "data": data}
+        const dc = await db(`SELECT *, 
+                             ST_Y(Plocation.geog::geometry) AS latitude,
+                             ST_X(Plocation.geog::geometry) AS longitude,
+                             ST_Distance(Plocation.geog, ST_MakePoint($3, $4)::geography) / 1000 AS distance_km
+                      FROM Plocation 
+                      WHERE pincode = $1 
+                      AND ST_DWithin(Plocation.geog, ST_MakePoint($3, $4)::geography, $2);`, 
+                      [pincode, radius, lat, longi]);
+        console.log(dc)
+
+        return {"status": 200, "data": dc}
     }catch(err){
+        console.log(err)
         return {"status": 500, "msg": err}
     }
 }
 
 export const updateSlot = async (req) => {
     try{
-        const data = await db("UPDATE Parking_lot SET available_slots=$1 isOpen=$2 WHERE id=$3", 
-            [req.body.available_slots, req.body.isOpen, req.body.pslotId])
+        const data = await db("UPDATE PLocation SET available_slots=$1 isOpen=$2 WHERE location_id=$3", 
+            [req.query.available_slots, req.query.isOpen, req.query.pslotId])
         return {"status": 201, "data": data}
     }catch(err){
         return {"status": 500, "msg": err}
@@ -56,11 +72,14 @@ export const updateSlot = async (req) => {
 
 export const createSlot = async(req) => {
     try{
-        const data = await db("INSERT INTO Parking_lot VALUES($1, $2, $3, $4, $5)", 
-        [req.body.lot_name, req.body.location_id, req.body.total_slots, 
-        req.body.vacant_slots, req.body.total_revenue])
-        return {"status": 201, "data": data}
+        const locd = await db("INSERT INTO Plocation(location_name, pincode, address, city, total_parking_lots, geog) VALUES($1, $2, $3, $4, $5, ST_MakePoint($6, $7)::geography)",
+            [req.body.location_name, req.body.pincode, req.body.address, req.body.city, req.body.total_parking_lots, req.body.latitude, req.body.longitude]
+        )
+
+        console.log("Status: ", locd)
+        return {"status": 201, "data": locd}
     }catch(err){
+        console.log(err)
         return {"status": 500, "msg": err}
     }
 }

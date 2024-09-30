@@ -195,22 +195,9 @@
     "/get_slot_by_location": {
       "get": {
         "description": "",
-        "parameters": [
-          {
-            "name": "authorization",
-            "in": "header",
-            "type": "string"
-          }
-        ],
         "responses": {
           "200": {
             "description": "OK"
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "403": {
-            "description": "Forbidden"
           }
         }
       }
@@ -261,29 +248,30 @@
         "description": "",
         "parameters": [
           {
-            "name": "authorization",
-            "in": "header",
-            "type": "string"
-          },
-          {
             "name": "body",
             "in": "body",
             "schema": {
               "type": "object",
               "properties": {
-                "lot_name": {
+                "location_name": {
                   "example": "any"
                 },
-                "location_id": {
+                "pincode": {
                   "example": "any"
                 },
-                "total_slots": {
+                "address": {
                   "example": "any"
                 },
-                "vacant_slots": {
+                "city": {
                   "example": "any"
                 },
-                "total_revenue": {
+                "total_parking_lots": {
+                  "example": "any"
+                },
+                "latitude": {
+                  "example": "any"
+                },
+                "longitude": {
                   "example": "any"
                 }
               }
@@ -293,12 +281,6 @@
         "responses": {
           "200": {
             "description": "OK"
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "403": {
-            "description": "Forbidden"
           }
         }
       }
