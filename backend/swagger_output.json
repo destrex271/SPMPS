@@ -195,6 +195,28 @@
     "/get_slot_by_location": {
       "get": {
         "description": "",
+        "parameters": [
+          {
+            "name": "pincode",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "latitude",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "longitude",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "radius",
+            "in": "query",
+            "type": "string"
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK"
@@ -207,27 +229,24 @@
         "description": "",
         "parameters": [
           {
-            "name": "authorization",
-            "in": "header",
+            "name": "available_slots",
+            "in": "query",
             "type": "string"
           },
           {
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "available_slots": {
-                  "example": "any"
-                },
-                "isOpen": {
-                  "example": "any"
-                },
-                "pslotId": {
-                  "example": "any"
-                }
-              }
-            }
+            "name": "isOpen",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "pslotId",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
           }
         ],
         "responses": {
@@ -278,6 +297,16 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/upload-image": {
+      "post": {
+        "description": "",
         "responses": {
           "200": {
             "description": "OK"

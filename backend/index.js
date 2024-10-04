@@ -6,7 +6,16 @@ import {createSession, endSession} from './controller/devices.js'
 import swaggerUi from 'swagger-ui-express'
 import swaggerFile from './swagger_output.json' with {type: 'json'};
 import cors from 'cors'
+import fs from 'fs'
 import jwt from 'jsonwebtoken'
+import fileUpload from "express-fileupload";
+import path from "path";
+import multer from "multer";
+import { PromptGemini } from "./controller/anpr.js";
+
+import { fileURLToPath } from 'url';
+
+const upload = multer({ dest: 'uploads/' })
 
 const secretKey = "secretkey";
 
@@ -15,6 +24,7 @@ const saltRounds = 10
 const port = 3000;
 const app = express();
 
+app.use(fileUpload());
 app.use(cors())
 app.use('/doc', swaggerUi.serve, swaggerUi.setup(swaggerFile))
 
@@ -126,6 +136,36 @@ app.post("/createslot", async(req, res) => {
     const data = await createSlot(req)
     res.json(data)
 })
+const __dirname = "uploads"
+// ANPR API
+app.post('/upload', (req, res) => {
+  if (!req.files || Object.keys(req.files).length === 0) {
+      return res.status(400).send('No files were uploaded.');
+  }
+  
+  const image = req.files.image; // Ensure 'image' matches the form field name
+  const uploadPath = path.join("uploads", `${Date.now()}-${image.name}`); // Add timestamp for uniqueness
+
+  console.log(uploadPath)
+  
+  image.mv(uploadPath, async (err) => {
+      if (err) {
+          return res.status(500).send(err);
+      }
+    
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = path.dirname(__filename);
+      // PromptGemini(__dirname + "/" + uploadPath)
+      const data = await PromptGemini(__dirname+"/"+uploadPath)
+      console.log("registering ", data)
+      console.log("Removing image from local storage")
+      fs.rm(uploadPath, () => {
+        console.log("Removed image sucessfully")
+      })
+      return res.json(data).status(201)
+  });
+});
+
 
 // -----------------------------------
 // Parking Session APIs
