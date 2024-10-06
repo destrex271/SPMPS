@@ -44,8 +44,8 @@ export const getSlotsByLocation = async (pincode, latitude, longitude, radius) =
         let lat = parseFloat(latitude)
         console.log("Getting data....")
         const dc = await db(`SELECT *, 
-                             ST_Y(Plocation.geog::geometry) AS latitude,
-                             ST_X(Plocation.geog::geometry) AS longitude,
+                             ST_Y(Plocation.geog::geometry) AS longitude,
+                             ST_X(Plocation.geog::geometry) AS latitude,
                              ST_Distance(Plocation.geog, ST_MakePoint($3, $4)::geography) / 1000 AS distance_km
                       FROM Plocation 
                       WHERE pincode = $1 
