@@ -45,12 +45,9 @@ void setup() {
 
   // Register Parking Slot
   
-
-
-
   // Initialize Soft AP
   // WiFi.softAP(ssid, password);
-  WiFi.softAP(ssid);
+  WiFi.softAP(ssid, password);
   WiFi.softAPConfig(local_ip, gateway, subnet);
   delay(100);
 
@@ -84,7 +81,7 @@ void setup() {
       payload += "  \"vacant_slots\": \"1\",\n";
       payload += "  \"total_revenue\": \"1\"\n";
       payload += "}\n";
-      sendHTTPRequest(request, "https://spotconnect-backend.onrender.com/createslot", payload);
+      sendHTTPRequest(request, "https://spmps.onrender.com/createslot", payload);
   });
 
   server.on("/capture_data", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -109,6 +106,72 @@ void setup() {
 
 void loop() {
   // Nothing to do here
+  Serial.println("Waiting.....");
+  // const int numDevices = sizeof(connectedDevices) / sizeof(connectedDevices[0]);
+  // if(numDevices > 0) Serial.println(numDevices);
+  for (const ConnectedDevice& device : connectedDevices) {
+        String deviceIp = device.ipAddress;
+        String captureUrl = "http://" + deviceIp + "/capture";
+        Serial.println(captureUrl);
+
+        if (WiFi.status() == WL_CONNECTED) {
+            HTTPClient http;
+            Serial.println("capturing ");
+            http.begin(captureUrl);
+            Serial.println(captureUrl);
+
+            int httpResponseCode = http.GET();
+            if (httpResponseCode > 0) {
+                // Read the image from the response
+                WiFiClient* stream = http.getStreamPtr();
+                String imageData = "";
+                while (stream->available()) {
+                    imageData += (char)stream->read();
+                }
+
+                String uploadUrl = "http://192.168.12.165:3000/upload"; // Replace with your Node.js API URL
+                HTTPClient uploadHttp;
+                uploadHttp.begin(uploadUrl);
+
+                // Prepare the multipart/form-data content
+                String boundary = "----WebKitFormBoundary7MA4YWxkTrZu0gW"; // Random boundary
+                String body = "--" + boundary + "\r\n";
+                body += "Content-Disposition: form-data; name=\"image\"; filename=\"image_" + String(millis()) + ".jpg\"\r\n"; // Unique filename
+                body += "Content-Type: image/jpeg\r\n\r\n"; // Content type
+                body += imageData + "\r\n";
+                body += "--" + boundary + "--\r\n";
+
+                // Set the content type and content length
+                uploadHttp.addHeader("Content-Type", "multipart/form-data; boundary=" + boundary);
+                uploadHttp.addHeader("Content-Length", String(body.length()));
+
+                // Send the POST request
+                int uploadResponseCode = uploadHttp.POST(body);
+
+                if (uploadResponseCode > 0) {
+                    Serial.print("Upload response code: ");
+                    Serial.println(uploadResponseCode);
+                } else {
+                    Serial.print("Upload failed, error: ");
+                    Serial.println(uploadHttp.errorToString(uploadResponseCode).c_str());
+                }
+
+                uploadHttp.end();
+
+                // End
+                Serial.print("Image received from device ");
+                Serial.println(deviceIp);
+                // Serial.println(imageData);
+            } else {
+                Serial.print("Error on GET from device ");
+                Serial.println(deviceIp);
+                Serial.println(httpResponseCode);
+            }
+            http.end();
+        }
+        delay(1000);  // Delay between requests to avoid overloading
+    }
+    delay(7000);
 }
 
 // Event handler for when a station connects

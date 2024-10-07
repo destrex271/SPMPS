@@ -36,8 +36,11 @@
 // ===========================
 // Enter your WiFi credentials
 // ===========================
-const char *ssid = "motoedge50fusion_1771";
-const char *password = "yebt3925";
+const char *ssid = "ESP32";
+const char *password = "12345678";
+
+// const char *ssid = "motoedge50fusion_1771";
+// const char *password = "yebt3925";
 
 void startCameraServer();
 void setupLedFlash(int pin);
@@ -143,6 +146,7 @@ void setup() {
   Serial.println("");
   Serial.println("WiFi connected");
 
+  Serial.println("Starting camera server...");
   startCameraServer();
 
   Serial.print("Camera Ready! Use 'http://");
