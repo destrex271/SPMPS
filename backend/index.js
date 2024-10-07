@@ -144,7 +144,7 @@ app.post('/upload', (req, res) => {
   }
   
   const image = req.files.image; // Ensure 'image' matches the form field name
-  const uploadPath = path.join("uploads", `${Date.now()}-${image.name}`); // Add timestamp for uniqueness
+  const uploadPath = path.join("uploads", `${Date.now()} - ${image.name}`); // Add timestamp for uniqueness
 
   console.log(uploadPath)
   
