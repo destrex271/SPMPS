@@ -1,5 +1,18 @@
 import { db } from './common.js'
 
+  
+  export const addVehicle = async (plateNumber, vehicleName, vehicleType, userid) => {
+      console.log(vehicleName);
+      try {
+          const resp = await db("INSERT into vehicle values($1, $2, $3, $4)", [plateNumber, vehicleName, vehicleType, userid]);
+          return { "status": 200, "msg": "Vehicle Added!", "data": resp };
+      } catch (err) {
+          console.error("Error adding vehicle: ", err);
+          return { "status": 400, "msg": "Unable to add vehicle", "err": err };
+      }
+  };
+  
+
 export const bookSlot = async (parkingId, userId) => {
     try {
 

@@ -1,7 +1,7 @@
 import express from "express";
 import bodyParser from "body-parser";
 import { loginUser, registerUser, updateUser, authenticateToken, loginUserWithEmail } from "./controller/user.js";
-import { bookSlot, getSlots, getSlotsByLocation, updateSlot, createSlot} from "./controller/parking.js";
+import { bookSlot, getSlots, getSlotsByLocation, updateSlot, createSlot,addVehicle} from "./controller/parking.js";
 import {createSession, endSession} from './controller/devices.js'
 import swaggerUi from 'swagger-ui-express'
 import swaggerFile from './swagger_output.json' with {type: 'json'};
@@ -138,34 +138,74 @@ app.post("/createslot", async(req, res) => {
 })
 const __dirname = "uploads"
 // ANPR API
-app.post('/upload', (req, res) => {
+app.post('/upload', async (req, res) => {
   if (!req.files || Object.keys(req.files).length === 0) {
-      return res.status(400).send('No files were uploaded.');
+    return res.status(400).send('No files were uploaded.');
   }
-  
+
   const image = req.files.image; // Ensure 'image' matches the form field name
   const uploadPath = path.join("uploads", `${Date.now()} - ${image.name}`); // Add timestamp for uniqueness
 
-  console.log(uploadPath)
-  
+  console.log(uploadPath);
+
   image.mv(uploadPath, async (err) => {
-      if (err) {
-          return res.status(500).send(err);
+    if (err) {
+      return res.status(500).send(err);
+    }
+
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+
+    try {
+      // Call ANPR function to get license number
+      const data = await PromptGemini(__dirname + "/" + uploadPath);
+      const licenseNumber = data; // Assuming PromptGemini returns the license number
+
+      console.log("Registering", licenseNumber);
+
+      // Prepare request object to simulate API call
+      const sessionRequest = {
+        body: {
+          vehicleNumber: licenseNumber,
+          sessionActive: true,
+          lot_id: req.body.lot_id || 1  // Assuming lot_id is provided in the request, fallback to default lot_id if missing
+        }
+      };
+
+      // Start the parking session by creating an entry in ParkingSession
+      const sessionResponse = await createSession(sessionRequest);
+
+      if (sessionResponse.status === 409) {
+        return res.status(409).json({ message: "Active session already exists", data: sessionResponse });
       }
-    
-      const __filename = fileURLToPath(import.meta.url);
-      const __dirname = path.dirname(__filename);
-      // PromptGemini(__dirname + "/" + uploadPath)
-      const data = await PromptGemini(__dirname+"/"+uploadPath)
-      console.log("registering ", data)
-      console.log("Removing image from local storage")
+
+      console.log("Session created:", sessionResponse);
+
+      // Clean up image after processing
+      console.log("Removing image from local storage");
       fs.rm(uploadPath, () => {
-        console.log("Removed image sucessfully")
-      })
-      return res.json(data).status(201)
+        console.log("Removed image successfully");
+      });
+
+      return res.status(201).json({ message: "Session created", data: sessionResponse });
+    } catch (err) {
+      console.error("Error processing the request:", err);
+      return res.status(500).json({ message: "Error processing request", err });
+    }
   });
 });
 
+app.post("/addvehicle", async(req, res) => {
+  console.log(req.body);
+  const plateNumber = req.body.plateNumber;
+  const vehicleName = req.body.vehicleName;
+  const vehicleType = req.body.vehicleType;
+  const userid = req.body.userId;
+
+
+  const resp = await addVehicle(plateNumber, vehicleName, vehicleType, userid);
+  res.json(resp);
+});
 
 // -----------------------------------
 // Parking Session APIs

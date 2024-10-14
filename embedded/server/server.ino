@@ -36,7 +36,7 @@ void setup() {
     return;
   }
 
-  WiFi.begin("motoedge50fusion_1771", "yebt3925");
+  WiFi.begin("thisiswhat", "");
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
@@ -129,7 +129,7 @@ void loop() {
                     imageData += (char)stream->read();
                 }
 
-                String uploadUrl = "http://192.168.12.165:3000/upload"; // Replace with your Node.js API URL
+                String uploadUrl = "http://192.168.23.222:3000/upload"; // Replace with your Node.js API URL
                 HTTPClient uploadHttp;
                 uploadHttp.begin(uploadUrl);
 
