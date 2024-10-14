@@ -1,7 +1,7 @@
 import express from "express";
 import bodyParser from "body-parser";
 import { loginUser, registerUser, updateUser, authenticateToken, loginUserWithEmail } from "./controller/user.js";
-import { bookSlot, getSlots, getSlotsByLocation, updateSlot, createSlot} from "./controller/parking.js";
+import { bookSlot, getSlots, getSlotsByLocation, updateSlot, createSlot,addVehicle} from "./controller/parking.js";
 import {createSession, endSession} from './controller/devices.js'
 import swaggerUi from 'swagger-ui-express'
 import swaggerFile from './swagger_output.json' with {type: 'json'};
@@ -195,7 +195,17 @@ app.post('/upload', async (req, res) => {
   });
 });
 
+app.post("/addvehicle", async(req, res) => {
+  console.log(req.body);
+  const plateNumber = req.body.plateNumber;
+  const vehicleName = req.body.vehicleName;
+  const vehicleType = req.body.vehicleType;
+  const userid = req.body.userId;
 
+
+  const resp = await addVehicle(plateNumber, vehicleName, vehicleType, userid);
+  res.json(resp);
+});
 
 // -----------------------------------
 // Parking Session APIs
