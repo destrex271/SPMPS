@@ -47,7 +47,8 @@ export const loginUser = async (username, password) => {
           if (match) {
               // Generate a JWT token
               const token = jwt.sign({ username: user.username }, secretKey, { expiresIn: "1h" });
-              return { status: 200, message: "Login Success!", token, first_name: user['first_name'], last_name: user['last_name'], mob_no: user['mobile_number']};
+              console.log(user)
+              return { status: 200, username: user['username'], message: "Login Success!", token, first_name: user['first_name'], last_name: user['last_name'], mob_no: user['mobile_number']};
           } else {
               return { status: 400, message: "Invalid password" };
           }
