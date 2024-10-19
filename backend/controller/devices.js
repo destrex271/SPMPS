@@ -10,6 +10,13 @@ import {db} from './common.js'
 //     }
 // }
 
+
+export const getUserFromVehicle = async (licNum) => {
+  const res = await db("SELECT user_id FROM vehicle where plate_number=$1", [licNum])
+
+  return res[0]
+}
+
 export const createSession = async (req) => {
     try {
       const activeSession = await db(

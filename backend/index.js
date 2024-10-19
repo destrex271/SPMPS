@@ -1,5 +1,6 @@
 import express from "express";
 import bodyParser from "body-parser";
+import { createServer } from 'http';
 import { loginUser, registerUser, updateUser, authenticateToken, loginUserWithEmail } from "./controller/user.js";
 import { bookSlot, getSlots, getSlotsByLocation, updateSlot, createSlot,addVehicle} from "./controller/parking.js";
 import {createSession, endSession} from './controller/devices.js'
@@ -14,6 +15,10 @@ import multer from "multer";
 import { PromptGemini } from "./controller/anpr.js";
 
 import { fileURLToPath } from 'url';
+import {Server} from 'socket.io'
+import { db } from "./controller/common.js";
+
+const userSockets = new Map();
 
 const upload = multer({ dest: 'uploads/' })
 
@@ -23,6 +28,39 @@ const saltRounds = 10
 
 const port = 3000;
 const app = express();
+const httpL = createServer(app)
+
+const socketIO = new Server(httpL, { cors: { origin: '*' } })
+socketIO.on('connection', (socket) => {
+
+  console.log(`⚡: ${socket.id} ${socket.handshake.query.userId} user just connected`);
+  userSockets.set(socket.handshake.query.userId, socket.id)
+  console.log(userSockets)
+
+  socket.on('disconnect', () => {
+    console.log('A user disconnected');
+  });
+});
+
+
+const sendNotification = (targetUserId, title, messageBody) => {
+    const targetSocket = userSockets.get(targetUserId); // Get the socket ID for the target user
+
+    if (targetSocket) {
+        const message = {
+            title: title,
+            body: messageBody,
+        };
+
+        // Emit the notification directly to the target user
+        socketIO.to(targetSocket).emit('notification', message);
+        console.log(`Notification sent to ${targetUserId}:`, message);
+    } else {
+        console.log(`User ${targetUserId} is not connected.`);
+    }
+};
+
+
 
 app.use(fileUpload());
 app.use(cors())
@@ -109,9 +147,9 @@ app.post("/bookslot", authenticateToken, async (req, res) => {
   res.json(data)
 });
 
-app.listen(port, () => {
-  console.log("Server started on port " + port);
-});
+// app.listen(port, () => {
+//   console.log("Server started on port " + port);
+// });
 
 
 // ---------------------------------------------------------------------------
@@ -187,6 +225,11 @@ app.post('/upload', async (req, res) => {
         console.log("Removed image successfully");
       });
 
+      const userId = getUserForVehicle(licenseNumber) 
+      console.log(userId)
+
+      sendNotification(userId, "Session started for "+ licenseNumber, `Session has been started for your vehicle at parking location: #ADD LOCATION`)
+
       return res.status(201).json({ message: "Session created", data: sessionResponse });
     } catch (err) {
       console.error("Error processing the request:", err);
@@ -235,3 +278,12 @@ app.post("/addedSlaveDevice", authenticateToken, async(req, res) => {
   const data = await addSlaveDevice(req)
   res.json(data)
 })
+
+
+app.post("/send_notif", async(req, res) => {
+  sendNotification(req.body.userId, {msg: "Hello"})
+  res.sendStatus(200)
+})
+
+
+httpL.listen(port)
