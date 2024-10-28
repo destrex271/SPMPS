@@ -129,7 +129,7 @@ void loop() {
                     imageData += (char)stream->read();
                 }
 
-                String uploadUrl = "http://192.168.23.222:3000/upload"; // Replace with your Node.js API URL
+                String uploadUrl = "http://192.168.164.222:3000/upload"; // Replace with your Node.js API URL
                 HTTPClient uploadHttp;
                 uploadHttp.begin(uploadUrl);
 
