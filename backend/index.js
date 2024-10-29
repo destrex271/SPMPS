@@ -2,7 +2,7 @@ import express from "express";
 import bodyParser from "body-parser";
 import { createServer } from 'http';
 import { loginUser, registerUser, updateUser, authenticateToken, loginUserWithEmail } from "./controller/user.js";
-import { bookSlot, getSlots, getSlotsByLocation, updateSlot, createSlot,addVehicle} from "./controller/parking.js";
+import { bookSlot, getSlots, getSlotsByLocation, updateSlot, createSlot,addVehicle,getVehicles} from "./controller/parking.js";
 import {createSession, endSession} from './controller/devices.js'
 import swaggerUi from 'swagger-ui-express'
 import swaggerFile from './swagger_output.json' with {type: 'json'};
@@ -41,6 +41,7 @@ socketIO.on('connection', (socket) => {
     console.log('A user disconnected');
   });
 });
+
 
 
 const sendNotification = (targetUserId, title, messageBody) => {
@@ -250,6 +251,13 @@ app.post("/addvehicle", async(req, res) => {
   res.json(resp);
 });
 
+app.post("/getvehicle", async (req, res) => {
+  console.log("Request Body:", req.body);
+  const { userId } = req.body;
+
+  const response = await getVehicles(userId);
+  res.json(response);
+});
 // -----------------------------------
 // Parking Session APIs
 

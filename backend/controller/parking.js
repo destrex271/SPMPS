@@ -12,6 +12,31 @@ import { db } from './common.js'
       }
   };
   
+export const getVehicles = async (userId) => {
+    console.log("User ID:", userId);
+  
+    try {
+      const vehicleData = await db("SELECT * FROM vehicle WHERE user_id = $1", [userId]);
+      console.log("Vehicle Data:", vehicleData);
+  
+      if (vehicleData) {
+        return {
+          status: 200,
+          msg: "Vehicles retrieved successfully!",
+          data: vehicleData,
+        };
+      }
+    } catch (err) {
+      console.error("Database Error:", err);
+      return {
+        status: 500,
+        msg: "Internal Server Error",
+        err: err,
+      };
+    }
+  };
+  
+  
 
 export const bookSlot = async (parkingId, userId) => {
     try {
