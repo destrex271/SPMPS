@@ -1,3 +1,4 @@
+import os
 from flask import Flask, jsonify, request
 import numpy as np
 import cv2
@@ -50,6 +51,7 @@ def detect_slots(lot_id):
     
     return jsonify({'available_slots': available}), 204
     
-
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port = 5000, debug=True)
+    port = int(os.environ.get("PORT", 5000))  # Get the port from the environment, default to 5000
+    app.run(host='0.0.0.0', port=port, debug=True)
+
