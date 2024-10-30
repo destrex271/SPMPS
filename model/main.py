@@ -52,7 +52,7 @@ def detect_slots(lot_id):
     #update number of valid slots in the database for that lot id 
     try:
         db.executeSQL("UPDATE plocation SET available_slots=" + str(available) + " WHERE location_id=" + str(lot_id) + ";")
-        return jsonify({'slot_state': available - cur_val})
+        return str(available - cur_val)
     except Exception as e:
         print(e)
         return jsonify({'error': "Unable to update database!"}), 500
