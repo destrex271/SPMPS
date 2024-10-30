@@ -4,9 +4,14 @@ import numpy as np
 import cv2
 
 from detect import get_lot_state, get_spots
-from db import connect_db
+from db import DB
 
 app = Flask(__name__)
+db = DB()
+
+def get_current_slots_for_ploc(ploc_id) -> int:
+    res = db.executeSQL("SELECT available_slots FROM plocation WHERE location_id=" + str(ploc_id) + ";")
+    return res[0][0]
 
 @app.route("/")
 def hello_world():
@@ -14,6 +19,9 @@ def hello_world():
 
 @app.route("/lots/<lot_id>/available", methods=["PUT"])
 def detect_slots(lot_id):
+
+    cur_val = get_current_slots_for_ploc(lot_id)
+    print(cur_val)
 
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'} 
 
@@ -35,21 +43,19 @@ def detect_slots(lot_id):
 
     spots = get_spots(mask)
     available = get_lot_state(spots, frame)
+    print(available)
     
+    # if > 0 -> New Car
+    # if == 0 -> No Change
+    # if < 0 -> Car Left
+
     #update number of valid slots in the database for that lot id 
     try:
-        conn = connect_db()
-
-        with conn.cursor() as curr:
-            curr.execute("UPDATE parking_lot SET vacant_slots = " + str(available) + " WHERE lot_id = " + str(lot_id))
-            conn.commit()
-    
-        conn.close()
+        db.executeSQL("UPDATE plocation SET available_slots=" + str(available) + " WHERE location_id=" + str(lot_id) + ";")
+        return jsonify({'slot_state': available - cur_val})
     except Exception as e:
         print(e)
         return jsonify({'error': "Unable to update database!"}), 500
-    
-    return jsonify({'available_slots': available}), 204
     
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))  # Get the port from the environment, default to 5000
