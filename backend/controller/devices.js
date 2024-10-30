@@ -46,6 +46,15 @@ export const createSession = async (req) => {
   };
   
 
+export const getSessionsForLot = async (lotId) => {
+    try{
+        const sessions = await db("SELECT plate_number FROM parkingsession INNER JOIN vehicle ON vehicle.plate_number = parkingsession.vehicle_id WHERE parkingsession.session_active=true AND lot_id=$1;", [lotId])
+        return sessions
+    }catch{
+        return undefined
+    }
+}
+  
 export const endSession = async (req) => {
     try{
         const data = await db("UPDATE ParkingSession SET session_active = $1, end_time = $2 WHERE session_id=$3", 

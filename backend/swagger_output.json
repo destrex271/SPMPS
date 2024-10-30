@@ -337,6 +337,30 @@
         }
       }
     },
+    "/endSession/{lot_id}": {
+      "post": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "lot_id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
     "/addvehicle": {
       "post": {
         "description": "",

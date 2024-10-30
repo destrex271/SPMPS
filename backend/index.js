@@ -3,7 +3,7 @@ import bodyParser from "body-parser";
 import { createServer } from 'http';
 import { loginUser, registerUser, updateUser, authenticateToken, loginUserWithEmail } from "./controller/user.js";
 import { bookSlot, getSlots, getSlotsByLocation, updateSlot, createSlot,addVehicle,getVehicles} from "./controller/parking.js";
-import {createSession, endSession} from './controller/devices.js'
+import {createSession, endSession, getSessionsForLot} from './controller/devices.js'
 import swaggerUi from 'swagger-ui-express'
 import swaggerFile from './swagger_output.json' with {type: 'json'};
 import cors from 'cors'
@@ -237,6 +237,72 @@ app.post('/upload', async (req, res) => {
       return res.status(500).json({ message: "Error processing request", err });
     }
   });
+});
+
+
+app.post('/endSession/:lot_id', async (req, res) => {
+  const lotId = req.params.lot_id;  // Extract lot_id from the URL
+
+  if (!req.files || Object.keys(req.files).length === 0) {
+    return res.status(400).send('No files were uploaded.');
+  }
+
+  const uploadedImages = req.files; // Get all the uploaded images
+  const licenseNumbers = []; // Array to store the detected license numbers
+
+  // Ensure 'uploadedImages' is an array of files, even if only one image is uploaded
+  const imageFiles = Array.isArray(uploadedImages.image) ? uploadedImages.image : [uploadedImages.image];
+
+  for (const image of imageFiles) {
+    const uploadPath = path.join("uploads", `${Date.now()}-${image.name}`); // Unique filename for each image
+
+    console.log("Saving image to: ", uploadPath);
+
+    // Save each image to the server
+    try {
+      await image.mv(uploadPath); // Move the image to the upload folder
+
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = path.dirname(__filename);
+
+      // Call ANPR function to get the license number from the image
+      const data = await PromptGemini(__dirname + "/" + uploadPath);
+      const licenseNumber = data; // Assuming PromptGemini returns the license number as a string
+
+      console.log(`Detected License Number: ${licenseNumber}`);
+      licenseNumbers.push(licenseNumber); // Add the license number to the list
+
+    } catch (err) {
+      console.error("Error processing the request for image:", image.name, err);
+      return res.status(500).json({ message: "Error processing image", error: err });
+    }
+  }
+
+  try {
+    // Get all car plates with active sessions for the given lot
+    const sessions = await getSessionsForLot(lotId);
+    console.log("Active sessions:", sessions);
+
+    // Find sessions that are not in the list of detected license numbers
+    const endedSessions = sessions.filter(session => !licenseNumbers.includes(session.licensePlate));
+
+    // End sessions for cars that are no longer in the lot
+    for (const session of endedSessions) {
+      console.log(`Ending session for license plate: ${session.licensePlate}`);
+      await endSession(session.licensePlate);  // Call the function to end the session
+    }
+
+    // Return the list of detected license numbers and the ended sessions
+    res.status(200).json({
+      message: "All images processed",
+      licenseNumbers: licenseNumbers,
+      endedSessions: endedSessions.map(session => session.licensePlate)
+    });
+
+  } catch (err) {
+    console.error("Error retrieving sessions or ending sessions:", err);
+    return res.status(500).json({ message: "Error ending sessions", error: err });
+  }
 });
 
 app.post("/addvehicle", async(req, res) => {
