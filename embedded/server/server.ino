@@ -27,6 +27,69 @@ struct ConnectedDevice {
 
 std::vector<ConnectedDevice> connectedDevices;
 
+
+// Setup Camera
+// Camera pin definitions (specific for AI-Thinker Model)
+#define PWDN_GPIO_NUM     -1
+#define RESET_GPIO_NUM    -1
+#define XCLK_GPIO_NUM      0
+#define SIOD_GPIO_NUM     26
+#define SIOC_GPIO_NUM     27
+#define Y9_GPIO_NUM       35
+#define Y8_GPIO_NUM       34
+#define Y7_GPIO_NUM       39
+#define Y6_GPIO_NUM       36
+#define Y5_GPIO_NUM       21
+#define Y4_GPIO_NUM       19
+#define Y3_GPIO_NUM       18
+#define Y2_GPIO_NUM        5
+#define VSYNC_GPIO_NUM    25
+#define HREF_GPIO_NUM     23
+#define PCLK_GPIO_NUM     22
+
+// Function to initialize the camera
+void initCamera() {
+  camera_config_t config;
+  config.ledc_channel = LEDC_CHANNEL_0;
+  config.ledc_timer = LEDC_TIMER_0;
+  config.pin_d0 = Y2_GPIO_NUM;
+  config.pin_d1 = Y3_GPIO_NUM;
+  config.pin_d2 = Y4_GPIO_NUM;
+  config.pin_d3 = Y5_GPIO_NUM;
+  config.pin_d4 = Y6_GPIO_NUM;
+  config.pin_d5 = Y7_GPIO_NUM;
+  config.pin_d6 = Y8_GPIO_NUM;
+  config.pin_d7 = Y9_GPIO_NUM;
+  config.pin_xclk = XCLK_GPIO_NUM;
+  config.pin_pclk = PCLK_GPIO_NUM;
+  config.pin_vsync = VSYNC_GPIO_NUM;
+  config.pin_href = HREF_GPIO_NUM;
+  config.pin_sscb_sda = SIOD_GPIO_NUM;
+  config.pin_sscb_scl = SIOC_GPIO_NUM;
+  config.pin_pwdn = PWDN_GPIO_NUM;
+  config.pin_reset = RESET_GPIO_NUM;
+  config.xclk_freq_hz = 20000000;
+  config.pixel_format = PIXFORMAT_JPEG;
+
+  // Init with high specs to get good quality images
+  if (psramFound()) {
+    config.frame_size = FRAMESIZE_SVGA;
+    config.jpeg_quality = 10; // Lower value, higher quality
+    config.fb_count = 2;      
+  } else {
+    config.frame_size = FRAMESIZE_QVGA;
+    config.jpeg_quality = 12; 
+    config.fb_count = 1;
+  }
+
+  // Initialize the camera
+  esp_err_t err = esp_camera_init(&config);
+  if (err != ESP_OK) {
+    Serial.printf("Camera init failed with error 0x%x", err);
+    return;
+  }
+}
+
 void setup() {
   Serial.begin(115200);
 
@@ -109,6 +172,72 @@ void loop() {
   Serial.println("Waiting.....");
   // const int numDevices = sizeof(connectedDevices) / sizeof(connectedDevices[0]);
   // if(numDevices > 0) Serial.println(numDevices);
+
+  // TODO: Send Data to Slot detecttion API HERE
+
+  camera_fb_t * fb = NULL;
+  
+  // Take a picture
+  fb = esp_camera_fb_get();  
+  if (!fb) {
+    Serial.println("Camera capture failed");
+    return;
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    http.begin(availableSlotsEndpoint);
+    http.addHeader("Content-Type", "multipart/form-data");
+
+    String boundary = "----ESP32Boundary";
+    String contentType = "multipart/form-data; boundary=" + boundary;
+    http.addHeader("Content-Type", contentType);
+
+    String body = "--" + boundary + "\r\n";
+    body += "Content-Disposition: form-data; name=\"frame\"; filename=\"image.jpg\"\r\n";
+    body += "Content-Type: image/jpeg\r\n\r\n";
+
+    int imageLen = fb->len;
+    int bodyLen = body.length() + imageLen + 6 + boundary.length() + 4;
+
+    http.addHeader("Content-Length", String(bodyLen));
+
+    WiFiClient * stream = http.getStreamPtr();
+    stream->print(body);
+    stream->write(fb->buf, fb->len);
+    stream->print("\r\n--" + boundary + "--\r\n");
+
+    int httpResponseCode = http.sendRequest("PUT", (uint8_t *)NULL, 0);
+    if (httpResponseCode > 0) {
+      Serial.printf("PUT Response code: %d\n", httpResponseCode);
+
+      // Read the response
+      String response = http.getString();
+      Serial.println("Response: " + response);
+
+      // Parse the response (assuming it's a simple JSON with a field `slot_state`)
+      int slotState = response.toInt();  // Simplified, consider parsing full JSON for complex responses
+      if (slotState > 0) {
+        Serial.println("New car detected. Starting session...");
+        startSession();
+      } else if (slotState < 0) {
+        Serial.println("Car left. Ending session...");
+        endSession();
+      } else {
+        Serial.println("No change in slots.");
+      }
+
+    } else {
+      Serial.printf("Error on sending PUT: %s\n", http.errorToString(httpResponseCode).c_str());
+    }
+
+    http.end();
+  }
+
+  esp_camera_fb_return(fb); 
+}
+
+void startSession(){
   for (const ConnectedDevice& device : connectedDevices) {
         String deviceIp = device.ipAddress;
         String captureUrl = "http://" + deviceIp + "/capture";
@@ -171,8 +300,93 @@ void loop() {
         }
         delay(1000);  // Delay between requests to avoid overloading
     }
-    delay(7000);
 }
+
+// Function to collect image from each device
+String collectImageFromDevice(String deviceIp) {
+    HTTPClient http;
+    String captureUrl = "http://" + deviceIp + "/capture";
+    http.begin(captureUrl);
+    int httpResponseCode = http.GET();
+
+    if (httpResponseCode > 0) {
+        WiFiClient* stream = http.getStreamPtr();
+        String imageData = "";
+        while (stream->available()) {
+            imageData += (char)stream->read();
+        }
+        http.end();
+        return imageData;  // Return the image data from the device
+    } else {
+        Serial.print("Error capturing image from device ");
+        Serial.println(deviceIp);
+        http.end();
+        return "";
+    }
+}
+
+// Function to send all collected images in one PUT request
+void sendImagesToServer(std::vector<String> images) {
+    if (WiFi.status() == WL_CONNECTED) {
+        HTTPClient http;
+        http.begin(endSessionEndpoint);
+
+        // Prepare the multipart/form-data content
+        String boundary = "----ESP32Boundary";
+        String body = "";
+        
+        for (int i = 0; i < images.size(); i++) {
+            body += "--" + boundary + "\r\n";
+            body += "Content-Disposition: form-data; name=\"image" + String(i) + "\"; filename=\"image_" + String(i) + ".jpg\"\r\n";
+            body += "Content-Type: image/jpeg\r\n\r\n";
+            body += images[i] + "\r\n";
+        }
+
+        // End boundary
+        body += "--" + boundary + "--\r\n";
+
+        // Set headers
+        http.addHeader("Content-Type", "multipart/form-data; boundary=" + boundary);
+        http.addHeader("Content-Length", String(body.length()));
+
+        // Send the PUT request
+        int httpResponseCode = http.PUT(body);
+
+        if (httpResponseCode > 0) {
+            Serial.print("Server response code: ");
+            Serial.println(httpResponseCode);
+            String response = http.getString();
+            Serial.println("Response from server: ");
+            Serial.println(response);
+        } else {
+            Serial.print("Error sending images: ");
+            Serial.println(http.errorToString(httpResponseCode).c_str());
+        }
+
+        http.end();
+    }
+}
+
+// Function to capture images from all devices and send them
+void endSession() {
+    std::vector<String> images;
+
+    // Collect images from all devices
+    for (const ConnectedDevice& device : connectedDevices) {
+        String imageData = collectImageFromDevice(device.ipAddress);
+        if (!imageData.isEmpty()) {
+            images.push_back(imageData);
+        }
+    }
+
+    // Send all collected images in one request
+    if (!images.empty()) {
+        sendImagesToServer(images);
+    } else {
+        Serial.println("No images to send.");
+    }
+}
+
 
 // Event handler for when a station connects
 void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info) {
