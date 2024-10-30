@@ -3,7 +3,7 @@ import bodyParser from "body-parser";
 import { createServer } from 'http';
 import { loginUser, registerUser, updateUser, authenticateToken, loginUserWithEmail } from "./controller/user.js";
 import { bookSlot, getSlots, getSlotsByLocation, updateSlot, createSlot,addVehicle,getVehicles} from "./controller/parking.js";
-import {createSession, endSession, getSessionsForLot} from './controller/devices.js'
+import {createSession, endSession, getSessionsForLot, getUserFromVehicle} from './controller/devices.js'
 import swaggerUi from 'swagger-ui-express'
 import swaggerFile from './swagger_output.json' with {type: 'json'};
 import cors from 'cors'
@@ -274,7 +274,7 @@ app.post('/endSession/:lot_id', async (req, res) => {
 
     } catch (err) {
       console.error("Error processing the request for image:", image.name, err);
-      return res.status(500).json({ message: "Error processing image", error: err });
+      return res.sendStatus(500)
     }
   }
 
@@ -290,14 +290,14 @@ app.post('/endSession/:lot_id', async (req, res) => {
     for (const session of endedSessions) {
       console.log(`Ending session for license plate: ${session.licensePlate}`);
       await endSession(session.licensePlate);  // Call the function to end the session
+      
+      // Fetch User for this car and send notification to end session
+      let user_id = getUserFromVehicle(session.licensePlate)
+      sendNotification(user_id, "Session Ended", "Session for your vehicle " + session.licensePlate + " has ended. Tap to pay")
     }
 
     // Return the list of detected license numbers and the ended sessions
-    res.status(200).json({
-      message: "All images processed",
-      licenseNumbers: licenseNumbers,
-      endedSessions: endedSessions.map(session => session.licensePlate)
-    });
+    res.sendStatus(200)
 
   } catch (err) {
     console.error("Error retrieving sessions or ending sessions:", err);
