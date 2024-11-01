@@ -37,19 +37,14 @@ def get_spots(MASK):
     if type(MASK) == str:
         MASK = cv2.imread(MASK, 0)
 
-    connected_components = cv2.connectedComponentsWithStats(MASK, 4, cv2.CV_32S)
-    (totalLabels, _, values, _) = connected_components
+    _, thresholded = cv2.threshold(MASK, 127, 255, cv2.THRESH_BINARY)
+
+    contours, _ = cv2.findContours(thresholded, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     spots = []
-    coef = 1
-    for i in range(1, totalLabels):
-
-        x1 = int(values[i, cv2.CC_STAT_LEFT] * coef)
-        y1 = int(values[i, cv2.CC_STAT_TOP] * coef)
-        w = int(values[i, cv2.CC_STAT_WIDTH] * coef)
-        h = int(values[i, cv2.CC_STAT_HEIGHT] * coef)
-
-        spots.append([x1, y1, w, h])
+    for contour in contours:
+        x, y, w, h = cv2.boundingRect(contour)
+        spots.append((x, y, w, h))
 
     return spots
 
@@ -60,8 +55,8 @@ def calc_diff(im1, im2):
 
 if __name__ == "__main__":
 
-    cap = cv2.VideoCapture('./clip.mp4')
-    spots = get_spots("./mask.png")
+    cap = cv2.VideoCapture('samples/clip3.mp4')
+    spots = get_spots("samples/mask.jpg")
 
     spots_status = [None for j in spots]
     diffs = [None for j in spots]
@@ -71,6 +66,14 @@ if __name__ == "__main__":
     frame_number = 0
     step = 30
 
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    output_video = 'samples/thapar_parking_lot2.mp4'
+    fourcc = cv2.VideoWriter_fourcc(*'mpv4')  
+    out = cv2.VideoWriter(output_video, fourcc, fps, (frame_width, frame_height))
+
     while True:
         _, frame = cap.read()
 
@@ -79,8 +82,8 @@ if __name__ == "__main__":
 
         if frame_number % step == 0:
 
-            if frame_number == 300:
-                cv2.imwrite("frame2.jpg", frame)
+            # if frame_number == 300:
+            #     cv2.imwrite("frame.jpg", frame)
 
             if previous_frame is None:
                 arr_ = range(len(spots))
@@ -115,16 +118,19 @@ if __name__ == "__main__":
             else:
                 frame = cv2.rectangle(frame, (x1, y1), (x1 + w, y1 + h), (0, 0, 255), 2)
 
-        cv2.rectangle(frame, (80, 20), (550, 80), (0, 0, 0), -1)
-        cv2.putText(frame, 'Available spots: {} / {}'.format(str(sum(spots_status)), str(len(spots_status))), (100, 60),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        cv2.rectangle(frame, (120, 20), (240, 45), (0, 0, 0), -1)
+        cv2.putText(frame, 'Available spots: {} / {}'.format(str(sum(spots_status)), str(len(spots_status))), (130, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 255, 255), 1)
 
         cv2.namedWindow('frame', cv2.WINDOW_NORMAL)
         cv2.imshow('frame', frame)
+
+        out.write(frame)
         if cv2.waitKey(25) & 0xFF == ord('q'):
             break
 
         frame_number += 1
 
     cap.release()
+    out.release()
     cv2.destroyAllWindows()
