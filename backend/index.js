@@ -35,7 +35,7 @@ socketIO.on('connection', (socket) => {
 
   console.log(`⚡: ${socket.id} ${socket.handshake.query.userId} user just connected`);
   userSockets.set(socket.handshake.query.userId, socket.id)
-  console.log(userSockets)
+  console.log("Queryyy", socket.handshake.query)
 
   socket.on('disconnect', () => {
     console.log('A user disconnected');
