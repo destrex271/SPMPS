@@ -38,8 +38,8 @@ def detect_slots(lot_id):
     frame_bytes = np.frombuffer(frame.read(), np.uint8)
     frame = cv2.imdecode(frame_bytes, cv2.IMREAD_COLOR)
 
-    #Can be a static file or path fetched using lot id
-    mask = './mask.png'
+    #Can be a static file or path fetched using lot id, todo
+    mask = 'samples/mask.jpg'
 
     spots = get_spots(mask)
     available = get_lot_state(spots, frame)
