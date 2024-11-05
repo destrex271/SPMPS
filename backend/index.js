@@ -226,11 +226,12 @@ app.post('/upload', async (req, res) => {
         console.log("Removed image successfully");
       });
 
-      const userId = getUserForVehicle(licenseNumber) 
-      console.log(userId)
+      for(const licNum of licenseNumber){
+        const userId = await getUserFromVehicle(licNum) 
+        console.log(userId)
 
-      sendNotification(userId, "Session started for "+ licenseNumber, `Session has been started for your vehicle at parking location: #ADD LOCATION`)
-
+        sendNotification(userId, "Session started for "+ licenseNumber, `Session has been started for your vehicle at parking location: #ADD LOCATION`)
+      }
       return res.status(201).json({ message: "Session created", data: sessionResponse });
     } catch (err) {
       console.error("Error processing the request:", err);
@@ -240,7 +241,7 @@ app.post('/upload', async (req, res) => {
 });
 
 
-app.post('/endSession/:lot_id', async (req, res) => {
+app.put('/endSession/:lot_id', async (req, res) => {
   const lotId = req.params.lot_id;  // Extract lot_id from the URL
 
   if (!req.files || Object.keys(req.files).length === 0) {
@@ -267,10 +268,10 @@ app.post('/endSession/:lot_id', async (req, res) => {
 
       // Call ANPR function to get the license number from the image
       const data = await PromptGemini(__dirname + "/" + uploadPath);
-      const licenseNumber = data; // Assuming PromptGemini returns the license number as a string
-
-      console.log(`Detected License Number: ${licenseNumber}`);
-      licenseNumbers.push(licenseNumber); // Add the license number to the list
+      console.log("LIC NUMS:", data)
+      for(const dt of data){
+        licenseNumbers.push(dt); // Add the license number to the list
+      }
 
     } catch (err) {
       console.error("Error processing the request for image:", image.name, err);
@@ -278,22 +279,49 @@ app.post('/endSession/:lot_id', async (req, res) => {
     }
   }
 
+  console.log("Saved Images! Doing ANPR")
   try {
     // Get all car plates with active sessions for the given lot
-    const sessions = await getSessionsForLot(lotId);
-    console.log("Active sessions:", sessions);
+    const activeSessions = await getSessionsForLot(lotId);
+    console.log("Active sessions:", activeSessions);
 
     // Find sessions that are not in the list of detected license numbers
-    const endedSessions = sessions.filter(session => !licenseNumbers.includes(session.licensePlate));
+    const endedSessions = [] 
+    
+    for (var i = 0; i < activeSessions.length; i++) {
+      let sessionPlateNumber = activeSessions[i]['plate_number'];
+
+      // If licenseNumbers is empty, all sessions are considered ended
+      if (licenseNumbers.length == 0) {
+        endedSessions.push(sessionPlateNumber);
+      } else {
+        // Check if session plate number is not in licenseNumbers
+        let found = false;
+        for (var j = 0; j < licenseNumbers.length; j++) {
+          if (sessionPlateNumber === licenseNumbers[j]) {
+            found = true;
+            break;
+          }
+        }
+        if (!found) {
+          endedSessions.push(sessionPlateNumber);
+        }
+      }
+    }
+
+    console.log("ending sessions for -> ", endedSessions)
 
     // End sessions for cars that are no longer in the lot
-    for (const session of endedSessions) {
-      console.log(`Ending session for license plate: ${session.licensePlate}`);
-      await endSession(session.licensePlate);  // Call the function to end the session
+    for (const plate of endedSessions) {
+      console.log(`Ending session for license plate: ${plate}`);
+      const resp = await endSession(plate);  // Call the function to end the session
+      if(resp != 0){
+        res.send().json({"message": "unable to end session", err: resp})
+      }
       
       // Fetch User for this car and send notification to end session
-      let user_id = getUserFromVehicle(session.licensePlate)
-      sendNotification(user_id, "Session Ended", "Session for your vehicle " + session.licensePlate + " has ended. Tap to pay")
+      let user_id = await getUserFromVehicle(plate)
+      sendNotification(user_id, "Session Ended", "Session for your vehicle " + plate + " has ended. Tap to pay")
     }
 
     // Return the list of detected license numbers and the ended sessions

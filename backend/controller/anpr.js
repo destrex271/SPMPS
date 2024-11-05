@@ -92,7 +92,7 @@ export async function PromptGemini(filePath) {
                 fileUri: files[0].uri,
               },
             },
-            {text: "Return the License Numbers of vehicles in the image and give me the response as [License Plate 1, License Plate 2 ....].\n\n"},
+            {text: "Return the License Numbers of vehicles in the image and give me the response as [License Plate 1, License Plate 2 ....]. In license plate numbers remove any whitespaces in between.\n If there are no cars then return empty list like []\n"},
           ],
         },
       ],

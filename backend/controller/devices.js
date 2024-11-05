@@ -12,15 +12,16 @@ import {db} from './common.js'
 
 
 export const getUserFromVehicle = async (licNum) => {
+  console.log(licNum)
   const res = await db("SELECT user_id FROM vehicle where plate_number=$1", [licNum])
-
-  return res[0]
+  console.log(res)
+  return res[0]['user_id']
 }
 
 export const createSession = async (req) => {
     try {
       const activeSession = await db(
-        "SELECT session_id FROM parkingsession WHERE vehicle_id = $1 AND session_active = true",
+        "SELECT * FROM parkingsession WHERE vehicle_id = $1 AND session_active = true",
         [req.body.vehicleNumber[0]] // Access the first element of the array
       );
   
@@ -55,13 +56,16 @@ export const getSessionsForLot = async (lotId) => {
     }
 }
   
-export const endSession = async (req) => {
+export const endSession = async (plateNum) => {
     try{
-        const data = await db("UPDATE ParkingSession SET session_active = $1, end_time = $2 WHERE session_id=$3", 
-            [req.body.sessionActive, req.body.endTime, req.body.sessionId])
-        return {"status": 301, "data": data}
+      console.log("Sending!")  
+      const data = await db("UPDATE ParkingSession SET session_active = $1, end_time = NOW() WHERE vehicle_id=$2", 
+            [false, plateNum])
+        
+        return 0 
     }catch(err){
-        return {"status": 500, "err": err}
+        console.log("ERROR")
+        return err
     }
 }
 
