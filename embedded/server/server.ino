@@ -11,6 +11,7 @@
 /* Put your SSID & Password */
 const char* ssid = "ESP32";  // Enter SSID here
 const char* password = "12345678";  // Enter Password here
+const int gatewayLotId = 77;
 
 /* Put IP Address details */
 IPAddress local_ip(192,168,1,1);
@@ -173,7 +174,8 @@ void loop() {
   // const int numDevices = sizeof(connectedDevices) / sizeof(connectedDevices[0]);
   // if(numDevices > 0) Serial.println(numDevices);
 
-  // TODO: Send Data to Slot detecttion API HERE
+  // TODO: Send Data to Slot detection API HERE
+  String availableSlotsEndpoint = "https://spmps-1.onrender.com/lots/" + String(gatewayLotId) + "/available";
 
   camera_fb_t * fb = NULL;
   
