@@ -216,6 +216,8 @@ app.post('/upload', async (req, res) => {
 
       if (sessionResponse.status === 409) {
         return res.status(409).json({ message: "Active session already exists", data: sessionResponse });
+      }else if(sessionResponse.status == 500){
+          return res.status(500).json({message: "Car not registered!", err: sessionResponse})
       }
 
       console.log("Session created:", sessionResponse);
