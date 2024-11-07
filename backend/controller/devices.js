@@ -57,17 +57,39 @@ export const getSessionsForLot = async (lotId) => {
 }
   
 export const endSession = async (plateNum) => {
-    try{
-      console.log("Sending!")  
-      const data = await db("UPDATE ParkingSession SET session_active = $1, end_time = NOW() WHERE vehicle_id=$2", 
-            [false, plateNum])
-        
-        return 0 
-    }catch(err){
-        console.log("ERROR")
-        return err
+    try {
+        console.log("Sending!");
+
+        // Set the end time for the session
+        await db("UPDATE ParkingSession SET end_time = NOW() WHERE vehicle_id=$1", [plateNum]);
+
+        // Query the start_time and end_time for the session
+        const sessionData = await db(
+            "SELECT start_time, end_time FROM ParkingSession WHERE vehicle_id=$1 AND session_active=$2", 
+            [plateNum, true]
+        );
+
+        if (sessionData.rows.length === 0) {
+            throw new Error("Session not found or inactive.");
+        }
+
+        const { start_time, end_time } = sessionData.rows[0];
+
+        // Deactivate the session
+        await db("UPDATE ParkingSession SET session_active=$1 WHERE vehicle_id=$2", [false, plateNum]);
+
+        // Calculate the difference in minutes
+        const startTime = new Date(start_time);
+        const endTime = new Date(end_time);
+        const differenceInMinutes = (endTime - startTime) / (1000 * 60); // Convert ms to minutes
+
+        return differenceInMinutes * 0.1;
+    } catch (err) {
+        console.log("ERROR", err);
+        return -1;
     }
-}
+};
+
 
 export const addMasterDevice = async(req) => {
     try{

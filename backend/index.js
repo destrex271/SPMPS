@@ -317,13 +317,13 @@ app.put('/endSession/:lot_id', async (req, res) => {
     for (const plate of endedSessions) {
       console.log(`Ending session for license plate: ${plate}`);
       const resp = await endSession(plate);  // Call the function to end the session
-      if(resp != 0){
+      if(resp == -1){
         res.send().json({"message": "unable to end session", err: resp})
       }
       
       // Fetch User for this car and send notification to end session
       let user_id = await getUserFromVehicle(plate)
-      sendNotification(user_id, "Session Ended", "Session for your vehicle " + plate + " has ended. Tap to pay")
+      sendNotification(user_id, "Session Ended", "Session for your vehicle " + plate + " has ended. Tap to pay -> Rs. " + resp)
     }
 
     // Return the list of detected license numbers and the ended sessions
