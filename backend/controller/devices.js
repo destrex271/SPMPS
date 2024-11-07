@@ -69,11 +69,11 @@ export const endSession = async (plateNum) => {
             [plateNum, true]
         );
 
-        if (sessionData.rows.length === 0) {
-            throw new Error("Session not found or inactive.");
-        }
+        // if (sessionData.rows.length === 0) {
+        //     throw new Error("Session not found or inactive.");
+        // }
 
-        const { start_time, end_time } = sessionData.rows[0];
+        const { start_time, end_time } = sessionData[0];
 
         // Deactivate the session
         await db("UPDATE ParkingSession SET session_active=$1 WHERE vehicle_id=$2", [false, plateNum]);
