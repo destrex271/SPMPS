@@ -32,36 +32,54 @@ const httpL = createServer(app)
 
 const socketIO = new Server(httpL, { cors: { origin: '*' } })
 socketIO.on('connection', (socket) => {
+  const userId = socket.handshake.query.userId;
+  console.log(`⚡: ${socket.id} ${userId} user just connected`);
+  
+  // Check if the user already has sockets stored
+  if (userSockets.has(userId)) {
+      // If so, add this new socket ID to the array
+      userSockets.get(userId).push(socket.id);
+  } else {
+      // Otherwise, create a new array with this socket ID
+      userSockets.set(userId, [socket.id]);
+  }
 
-  console.log(`⚡: ${socket.id} ${socket.handshake.query.userId} user just connected`);
-  userSockets.set(socket.handshake.query.userId, socket.id)
-  console.log("Queryyy", socket.handshake.query)
+  console.log("Queryyy", socket.handshake.query);
 
   socket.on('disconnect', () => {
-    console.log('A user disconnected');
+      console.log(`Socket ${socket.id} disconnected`);
+
+      // Remove the socket from the user's socket array
+      const userSocketArray = userSockets.get(userId);
+      if (userSocketArray) {
+          const updatedSockets = userSocketArray.filter(id => id !== socket.id);
+          if (updatedSockets.length > 0) {
+              userSockets.set(userId, updatedSockets); // Update with remaining sockets
+          } else {
+              userSockets.delete(userId); // Remove user if no sockets remain
+          }
+      }
   });
 });
 
-
-
 const sendNotification = (targetUserId, title, messageBody) => {
-    const targetSocket = userSockets.get(targetUserId); // Get the socket ID for the target user
+  const targetSockets = userSockets.get(targetUserId); // Get the array of socket IDs for the target user
 
-    if (targetSocket) {
-        const message = {
-            title: title,
-            body: messageBody,
-        };
+  if (targetSockets && targetSockets.length > 0) {
+      const message = {
+          title: title,
+          body: messageBody,
+      };
 
-        // Emit the notification directly to the target user
-        socketIO.to(targetSocket).emit('notification', message);
-        console.log(`Notification sent to ${targetUserId}:`, message);
-    } else {
-        console.log(`User ${targetUserId} is not connected.`);
-    }
+      // Emit the notification to all connected sockets for the user
+      targetSockets.forEach(socketId => {
+          socketIO.to(socketId).emit('notification', message);
+          console.log(`Notification sent to ${targetUserId} on socket ${socketId}:`, message);
+      });
+  } else {
+      console.log(`User ${targetUserId} is not connected.`);
+  }
 };
-
-
 
 app.use(fileUpload());
 app.use(cors())
