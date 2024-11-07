@@ -404,7 +404,7 @@ app.post("/addedSlaveDevice", authenticateToken, async(req, res) => {
 
 
 app.post("/send_notif", async(req, res) => {
-  sendNotification(req.body.userId, {msg: "Hello", body: "Hello !"})
+  sendNotification(req.body.userId, "Title", "Hello")
   res.sendStatus(200)
 })
 
