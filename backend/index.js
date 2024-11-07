@@ -73,8 +73,8 @@ const sendNotification = (targetUserId, title, messageBody) => {
 
       // Emit the notification to all connected sockets for the user
       targetSockets.forEach(socketId => {
-          socketIO.to(socketId).emit('notification', message);
-          console.log(`Notification sent to ${targetUserId} on socket ${socketId}:`, message);
+          socketIO.to(socketId).emit('notification', JSON.stringify(message));
+          console.log(`Notification sent to ${targetUserId} on socket ${socketId}:`, JSON.stringify(message));
       });
   } else {
       console.log(`User ${targetUserId} is not connected.`);
