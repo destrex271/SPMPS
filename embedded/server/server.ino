@@ -1,6 +1,6 @@
 #include <LittleFS.h>
-
 #include <WiFi.h>
+#include <esp_camera.h>
 #include <HTTPClient.h>
 #include <esp_task_wdt.h>
 #include <base64.h>  // Ensure this library is included for base64 encoding
@@ -9,14 +9,15 @@
 #include "SPIFFS.h"
 
 /* Put your SSID & Password */
-const char* ssid = "ESP32";  // Enter SSID here
-const char* password = "12345678";  // Enter Password here
-const int gatewayLotId = 77;
+const char *ssid = "ESP32";         // Enter SSID here
+const char *password = "12345678";  // Enter Password here
+const int gatewayLotId = 7;
+const int loopDelay = 5000;
 
 /* Put IP Address details */
-IPAddress local_ip(192,168,1,1);
-IPAddress gateway(192,168,1,1);
-IPAddress subnet(255,255,255,0);
+IPAddress local_ip(192, 168, 1, 1);
+IPAddress gateway(192, 168, 1, 1);
+IPAddress subnet(255, 255, 255, 0);
 
 // Create an AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -27,88 +28,28 @@ struct ConnectedDevice {
 };
 
 std::vector<ConnectedDevice> connectedDevices;
-
-
-// Setup Camera
-// Camera pin definitions (specific for AI-Thinker Model)
-#define PWDN_GPIO_NUM     -1
-#define RESET_GPIO_NUM    -1
-#define XCLK_GPIO_NUM      0
-#define SIOD_GPIO_NUM     26
-#define SIOC_GPIO_NUM     27
-#define Y9_GPIO_NUM       35
-#define Y8_GPIO_NUM       34
-#define Y7_GPIO_NUM       39
-#define Y6_GPIO_NUM       36
-#define Y5_GPIO_NUM       21
-#define Y4_GPIO_NUM       19
-#define Y3_GPIO_NUM       18
-#define Y2_GPIO_NUM        5
-#define VSYNC_GPIO_NUM    25
-#define HREF_GPIO_NUM     23
-#define PCLK_GPIO_NUM     22
-
-// Function to initialize the camera
-void initCamera() {
-  camera_config_t config;
-  config.ledc_channel = LEDC_CHANNEL_0;
-  config.ledc_timer = LEDC_TIMER_0;
-  config.pin_d0 = Y2_GPIO_NUM;
-  config.pin_d1 = Y3_GPIO_NUM;
-  config.pin_d2 = Y4_GPIO_NUM;
-  config.pin_d3 = Y5_GPIO_NUM;
-  config.pin_d4 = Y6_GPIO_NUM;
-  config.pin_d5 = Y7_GPIO_NUM;
-  config.pin_d6 = Y8_GPIO_NUM;
-  config.pin_d7 = Y9_GPIO_NUM;
-  config.pin_xclk = XCLK_GPIO_NUM;
-  config.pin_pclk = PCLK_GPIO_NUM;
-  config.pin_vsync = VSYNC_GPIO_NUM;
-  config.pin_href = HREF_GPIO_NUM;
-  config.pin_sscb_sda = SIOD_GPIO_NUM;
-  config.pin_sscb_scl = SIOC_GPIO_NUM;
-  config.pin_pwdn = PWDN_GPIO_NUM;
-  config.pin_reset = RESET_GPIO_NUM;
-  config.xclk_freq_hz = 20000000;
-  config.pixel_format = PIXFORMAT_JPEG;
-
-  // Init with high specs to get good quality images
-  if (psramFound()) {
-    config.frame_size = FRAMESIZE_SVGA;
-    config.jpeg_quality = 10; // Lower value, higher quality
-    config.fb_count = 2;      
-  } else {
-    config.frame_size = FRAMESIZE_QVGA;
-    config.jpeg_quality = 12; 
-    config.fb_count = 1;
-  }
-
-  // Initialize the camera
-  esp_err_t err = esp_camera_init(&config);
-  if (err != ESP_OK) {
-    Serial.printf("Camera init failed with error 0x%x", err);
-    return;
-  }
-}
+void WiFiStationConnected(WiFiEvent_t, WiFiEventInfo_t);
+String sendRequest_Capture(String);
+void handle_ShowDevices(AsyncWebServerRequest *);
 
 void setup() {
   Serial.begin(115200);
 
   // Setup Storage
-  if(!SPIFFS.begin(true)){
+  if (!SPIFFS.begin(true)) {
     Serial.println("An Error has occurred while mounting SPIFFS");
-    return;
   }
 
-  WiFi.begin("thisiswhat", "");
+  WiFi.begin("FBI", "");
+  Serial.print("Connecting to WiFi-");
   while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
+    delay(1000);
     Serial.print(".");
   }
   Serial.println("Connected to WiFi");
 
   // Register Parking Slot
-  
+
   // Initialize Soft AP
   // WiFi.softAP(ssid, password);
   WiFi.softAP(ssid, password);
@@ -123,43 +64,43 @@ void setup() {
   //   request->send(200, "text/html", SendHTML());
   // });
 
-  server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send(SPIFFS, "/style.css", "text/css");
   });
 
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send(SPIFFS, "/index.html", String(), false, processor);
   });
 
-  server.on("/register_slot", HTTP_GET, [](AsyncWebServerRequest *request){
-      String payload = "{\n";
-      payload += "  \"location_name\": \"Parking slot\",\n";
-      payload += "  \"pincode\": \"124567\",\n";
-      payload += "  \"address\": \"any\",\n";
-      payload += "  \"city\": \"1\",\n";
-      payload += "  \"total_parking_lots\": \"1\",\n";
-      payload += "  \"latitude\": \"30.3978\",\n";
-      payload += "  \"longitude\": \"76.1135\",\n";
-      payload += "  \"lot_name\": \"any\",\n";
-      payload += "  \"total_slots\": \"1\",\n";
-      payload += "  \"vacant_slots\": \"1\",\n";
-      payload += "  \"total_revenue\": \"1\"\n";
-      payload += "}\n";
-      sendHTTPRequest(request, "https://spmps.onrender.com/createslot", payload);
+  server.on("/register_slot", HTTP_GET, [](AsyncWebServerRequest *request) {
+    String payload = "{\n";
+    payload += "  \"location_name\": \"Parking slot\",\n";
+    payload += "  \"pincode\": \"124567\",\n";
+    payload += "  \"address\": \"any\",\n";
+    payload += "  \"city\": \"1\",\n";
+    payload += "  \"total_parking_lots\": \"1\",\n";
+    payload += "  \"latitude\": \"30.3978\",\n";
+    payload += "  \"longitude\": \"76.1135\",\n";
+    payload += "  \"lot_name\": \"any\",\n";
+    payload += "  \"total_slots\": \"1\",\n";
+    payload += "  \"vacant_slots\": \"1\",\n";
+    payload += "  \"total_revenue\": \"1\"\n";
+    payload += "}\n";
+    sendHTTPRequest(request, "https://spmps.onrender.com/createslot", payload);
   });
 
-  server.on("/capture_data", HTTP_GET, [](AsyncWebServerRequest *request){
-     String base64Image = sendRequest_Capture("https://miro.medium.com/v2/resize:fit:1400/1*qre-gAVNTuazaUPvNw2w-Q.jpeg");
-     Serial.println("Got image -> ");
-  });  
+  server.on("/capture_data", HTTP_GET, [](AsyncWebServerRequest *request) {
+    String base64Image = sendRequest_Capture("https://miro.medium.com/v2/resize:fit:1400/1*qre-gAVNTuazaUPvNw2w-Q.jpeg");
+    Serial.println("Got image -> ");
+  });
 
   // Serve the connected devices page
-  server.on("/show_devices", HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on("/show_devices", HTTP_GET, [](AsyncWebServerRequest *request) {
     handle_ShowDevices(request);
   });
 
   // Handle not found pages
-  server.onNotFound([](AsyncWebServerRequest *request){
+  server.onNotFound([](AsyncWebServerRequest *request) {
     request->send(404, "text/plain", "Not found");
   });
 
@@ -170,17 +111,17 @@ void setup() {
 
 void loop() {
   // Nothing to do here
-  Serial.println("Waiting.....");
+  Serial.println("Capturing parking lot frame...");
   // const int numDevices = sizeof(connectedDevices) / sizeof(connectedDevices[0]);
   // if(numDevices > 0) Serial.println(numDevices);
 
   // TODO: Send Data to Slot detection API HERE
   String availableSlotsEndpoint = "https://spmps-1.onrender.com/lots/" + String(gatewayLotId) + "/available";
 
-  camera_fb_t * fb = NULL;
-  
+  camera_fb_t *fb = NULL;
+
   // Take a picture
-  fb = esp_camera_fb_get();  
+  fb = esp_camera_fb_get();
   if (!fb) {
     Serial.println("Camera capture failed");
     return;
@@ -204,10 +145,12 @@ void loop() {
 
     http.addHeader("Content-Length", String(bodyLen));
 
-    WiFiClient * stream = http.getStreamPtr();
+    WiFiClient *stream = http.getStreamPtr();
     stream->print(body);
     stream->write(fb->buf, fb->len);
     stream->print("\r\n--" + boundary + "--\r\n");
+
+    Serial.printf("Sending request...");
 
     int httpResponseCode = http.sendRequest("PUT", (uint8_t *)NULL, 0);
     if (httpResponseCode > 0) {
@@ -218,175 +161,179 @@ void loop() {
       Serial.println("Response: " + response);
 
       // Parse the response (assuming it's a simple JSON with a field `slot_state`)
-      int slotState = response.toInt();  // Simplified, consider parsing full JSON for complex responses
-      if (slotState > 0) {
-        Serial.println("New car detected. Starting session...");
-        startSession();
-      } else if (slotState < 0) {
-        Serial.println("Car left. Ending session...");
-        endSession();
-      } else {
-        Serial.println("No change in slots.");
-      }
+      //   int slotState = response.toInt();  // Simplified, consider parsing full JSON for complex responses
+      //   if (slotState > 0) {
+      //     Serial.println("New car detected. Starting session...");
+      //     startSession();
+      //   } else if (slotState < 0) {
+      //     Serial.println("Car left. Ending session...");
+      //     endSession();
+      //   } else {
+      //     Serial.println("No change in slots.");
+      //   }
 
-    } else {
-      Serial.printf("Error on sending PUT: %s\n", http.errorToString(httpResponseCode).c_str());
+      // } else {
+      //   Serial.printf("Error on sending PUT: %s\n", http.errorToString(httpResponseCode).c_str());
+      // }
+
+      http.end();
     }
 
-    http.end();
+    esp_camera_fb_return(fb);
+    Serial.printf("Sending next request in 5 seconds...");
+    delay(loopDelay);
   }
-
-  esp_camera_fb_return(fb); 
 }
 
-void startSession(){
-  for (const ConnectedDevice& device : connectedDevices) {
-        String deviceIp = device.ipAddress;
-        String captureUrl = "http://" + deviceIp + "/capture";
-        Serial.println(captureUrl);
+void startSession() {
+  for (const ConnectedDevice &device : connectedDevices) {
+    String deviceIp = device.ipAddress;
+    String captureUrl = "http://" + deviceIp + "/capture";
+    Serial.println(captureUrl);
 
-        if (WiFi.status() == WL_CONNECTED) {
-            HTTPClient http;
-            Serial.println("capturing ");
-            http.begin(captureUrl);
-            Serial.println(captureUrl);
+    if (WiFi.status() == WL_CONNECTED) {
+      HTTPClient http;
+      Serial.println("capturing ");
+      http.begin(captureUrl);
+      Serial.println(captureUrl);
 
-            int httpResponseCode = http.GET();
-            if (httpResponseCode > 0) {
-                // Read the image from the response
-                WiFiClient* stream = http.getStreamPtr();
-                String imageData = "";
-                while (stream->available()) {
-                    imageData += (char)stream->read();
-                }
-
-                String uploadUrl = "http://192.168.164.222:3000/upload"; // Replace with your Node.js API URL
-                HTTPClient uploadHttp;
-                uploadHttp.begin(uploadUrl);
-
-                // Prepare the multipart/form-data content
-                String boundary = "----WebKitFormBoundary7MA4YWxkTrZu0gW"; // Random boundary
-                String body = "--" + boundary + "\r\n";
-                body += "Content-Disposition: form-data; name=\"image\"; filename=\"image_" + String(millis()) + ".jpg\"\r\n"; // Unique filename
-                body += "Content-Type: image/jpeg\r\n\r\n"; // Content type
-                body += imageData + "\r\n";
-                body += "--" + boundary + "--\r\n";
-
-                // Set the content type and content length
-                uploadHttp.addHeader("Content-Type", "multipart/form-data; boundary=" + boundary);
-                uploadHttp.addHeader("Content-Length", String(body.length()));
-
-                // Send the POST request
-                int uploadResponseCode = uploadHttp.POST(body);
-
-                if (uploadResponseCode > 0) {
-                    Serial.print("Upload response code: ");
-                    Serial.println(uploadResponseCode);
-                } else {
-                    Serial.print("Upload failed, error: ");
-                    Serial.println(uploadHttp.errorToString(uploadResponseCode).c_str());
-                }
-
-                uploadHttp.end();
-
-                // End
-                Serial.print("Image received from device ");
-                Serial.println(deviceIp);
-                // Serial.println(imageData);
-            } else {
-                Serial.print("Error on GET from device ");
-                Serial.println(deviceIp);
-                Serial.println(httpResponseCode);
-            }
-            http.end();
+      int httpResponseCode = http.GET();
+      if (httpResponseCode > 0) {
+        // Read the image from the response
+        WiFiClient *stream = http.getStreamPtr();
+        String imageData = "";
+        while (stream->available()) {
+          imageData += (char)stream->read();
         }
-        delay(1000);  // Delay between requests to avoid overloading
+
+        String uploadUrl = "http://192.168.164.222:3000/upload";  // Replace with your Node.js API URL
+        HTTPClient uploadHttp;
+        uploadHttp.begin(uploadUrl);
+
+        // Prepare the multipart/form-data content
+        String boundary = "----WebKitFormBoundary7MA4YWxkTrZu0gW";  // Random boundary
+        String body = "--" + boundary + "\r\n";
+        body += "Content-Disposition: form-data; name=\"image\"; filename=\"image_" + String(millis()) + ".jpg\"\r\n";  // Unique filename
+        body += "Content-Type: image/jpeg\r\n\r\n";                                                                     // Content type
+        body += imageData + "\r\n";
+        body += "--" + boundary + "--\r\n";
+
+        // Set the content type and content length
+        uploadHttp.addHeader("Content-Type", "multipart/form-data; boundary=" + boundary);
+        uploadHttp.addHeader("Content-Length", String(body.length()));
+
+        // Send the POST request
+        int uploadResponseCode = uploadHttp.POST(body);
+
+        if (uploadResponseCode > 0) {
+          Serial.print("Upload response code: ");
+          Serial.println(uploadResponseCode);
+        } else {
+          Serial.print("Upload failed, error: ");
+          Serial.println(uploadHttp.errorToString(uploadResponseCode).c_str());
+        }
+
+        uploadHttp.end();
+
+        // End
+        Serial.print("Image received from device ");
+        Serial.println(deviceIp);
+        // Serial.println(imageData);
+      } else {
+        Serial.print("Error on GET from device ");
+        Serial.println(deviceIp);
+        Serial.println(httpResponseCode);
+      }
+      http.end();
     }
+    delay(1000);  // Delay between requests to avoid overloading
+  }
 }
 
 // Function to collect image from each device
 String collectImageFromDevice(String deviceIp) {
-    HTTPClient http;
-    String captureUrl = "http://" + deviceIp + "/capture";
-    http.begin(captureUrl);
-    int httpResponseCode = http.GET();
+  HTTPClient http;
+  String captureUrl = "http://" + deviceIp + "/capture";
+  http.begin(captureUrl);
+  int httpResponseCode = http.GET();
 
-    if (httpResponseCode > 0) {
-        WiFiClient* stream = http.getStreamPtr();
-        String imageData = "";
-        while (stream->available()) {
-            imageData += (char)stream->read();
-        }
-        http.end();
-        return imageData;  // Return the image data from the device
-    } else {
-        Serial.print("Error capturing image from device ");
-        Serial.println(deviceIp);
-        http.end();
-        return "";
+  if (httpResponseCode > 0) {
+    WiFiClient *stream = http.getStreamPtr();
+    String imageData = "";
+    while (stream->available()) {
+      imageData += (char)stream->read();
     }
+    http.end();
+    return imageData;  // Return the image data from the device
+  } else {
+    Serial.print("Error capturing image from device ");
+    Serial.println(deviceIp);
+    http.end();
+    return "";
+  }
 }
 
 // Function to send all collected images in one PUT request
 void sendImagesToServer(std::vector<String> images) {
-    if (WiFi.status() == WL_CONNECTED) {
-        HTTPClient http;
-        http.begin(endSessionEndpoint);
+  String endSessionEndpoint = "";
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    http.begin(endSessionEndpoint);
 
-        // Prepare the multipart/form-data content
-        String boundary = "----ESP32Boundary";
-        String body = "";
-        
-        for (int i = 0; i < images.size(); i++) {
-            body += "--" + boundary + "\r\n";
-            body += "Content-Disposition: form-data; name=\"image" + String(i) + "\"; filename=\"image_" + String(i) + ".jpg\"\r\n";
-            body += "Content-Type: image/jpeg\r\n\r\n";
-            body += images[i] + "\r\n";
-        }
+    // Prepare the multipart/form-data content
+    String boundary = "----ESP32Boundary";
+    String body = "";
 
-        // End boundary
-        body += "--" + boundary + "--\r\n";
-
-        // Set headers
-        http.addHeader("Content-Type", "multipart/form-data; boundary=" + boundary);
-        http.addHeader("Content-Length", String(body.length()));
-
-        // Send the PUT request
-        int httpResponseCode = http.PUT(body);
-
-        if (httpResponseCode > 0) {
-            Serial.print("Server response code: ");
-            Serial.println(httpResponseCode);
-            String response = http.getString();
-            Serial.println("Response from server: ");
-            Serial.println(response);
-        } else {
-            Serial.print("Error sending images: ");
-            Serial.println(http.errorToString(httpResponseCode).c_str());
-        }
-
-        http.end();
+    for (int i = 0; i < images.size(); i++) {
+      body += "--" + boundary + "\r\n";
+      body += "Content-Disposition: form-data; name=\"image" + String(i) + "\"; filename=\"image_" + String(i) + ".jpg\"\r\n";
+      body += "Content-Type: image/jpeg\r\n\r\n";
+      body += images[i] + "\r\n";
     }
+
+    // End boundary
+    body += "--" + boundary + "--\r\n";
+
+    // Set headers
+    http.addHeader("Content-Type", "multipart/form-data; boundary=" + boundary);
+    http.addHeader("Content-Length", String(body.length()));
+
+    // Send the PUT request
+    int httpResponseCode = http.PUT(body);
+
+    if (httpResponseCode > 0) {
+      Serial.print("Server response code: ");
+      Serial.println(httpResponseCode);
+      String response = http.getString();
+      Serial.println("Response from server: ");
+      Serial.println(response);
+    } else {
+      Serial.print("Error sending images: ");
+      Serial.println(http.errorToString(httpResponseCode).c_str());
+    }
+
+    http.end();
+  }
 }
 
 // Function to capture images from all devices and send them
 void endSession() {
-    std::vector<String> images;
+  std::vector<String> images;
 
-    // Collect images from all devices
-    for (const ConnectedDevice& device : connectedDevices) {
-        String imageData = collectImageFromDevice(device.ipAddress);
-        if (!imageData.isEmpty()) {
-            images.push_back(imageData);
-        }
+  // Collect images from all devices
+  for (const ConnectedDevice &device : connectedDevices) {
+    String imageData = collectImageFromDevice(device.ipAddress);
+    if (!imageData.isEmpty()) {
+      images.push_back(imageData);
     }
+  }
 
-    // Send all collected images in one request
-    if (!images.empty()) {
-        sendImagesToServer(images);
-    } else {
-        Serial.println("No images to send.");
-    }
+  // Send all collected images in one request
+  if (!images.empty()) {
+    sendImagesToServer(images);
+  } else {
+    Serial.println("No images to send.");
+  }
 }
 
 
@@ -394,9 +341,9 @@ void endSession() {
 void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info) {
   String macAddress = WiFi.macAddress();
   String ipAddress = IPAddress(info.got_ip.ip_info.ip.addr).toString();
-  
+
   // Add the connected device to the list
-  ConnectedDevice newDevice = {macAddress, ipAddress};
+  ConnectedDevice newDevice = { macAddress, ipAddress };
   connectedDevices.push_back(newDevice);
 
   Serial.println("Station connected IP Address = " + ipAddress);
@@ -404,10 +351,10 @@ void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info) {
   Serial.println();
 }
 
-String processor(const String& var){
+String processor(const String &var) {
   Serial.println("PROCESSING!!!!");
   Serial.println(var);
-  if(var == "STATE"){
+  if (var == "STATE") {
     Serial.print("OKKKK");
     return "OKKK";
   }
@@ -422,7 +369,7 @@ String sendRequest_Capture(String endpoint_url) {
   String base64Image = "";
 
   if (httpResponseCode == HTTP_CODE_OK) {
-    WiFiClient* stream = http.getStreamPtr();
+    WiFiClient *stream = http.getStreamPtr();
     String base64String = "";
     while (stream->available()) {
       uint8_t buffer[128];
@@ -443,25 +390,24 @@ String sendRequest_Capture(String endpoint_url) {
   return base64Image;
 }
 
-void sendHTTPRequest(AsyncWebServerRequest *request, String endpoint, String payload){
+void sendHTTPRequest(AsyncWebServerRequest *request, String endpoint, String payload) {
   HTTPClient http;
   http.begin(endpoint);
   http.addHeader("Content-Type", "application/json");
-    esp_task_wdt_reset();
+  esp_task_wdt_reset();
   int httpResponseCode = http.POST(payload);
-    esp_task_wdt_reset();
+  esp_task_wdt_reset();
   Serial.println("OKKKKKKKK Sending");
 
-  if(httpResponseCode > 0){
+  if (httpResponseCode > 0) {
     String response = http.getString();
     Serial.println("Response " + response);
     request->send(200, "text/html", response);
-  }else{
+  } else {
     Serial.println("Error: " + String(httpResponseCode));
   }
 
   http.end();
-
 }
 
 // String sendRequest_Capture(String endpoint_url){
@@ -542,7 +488,7 @@ void handle_ShowDevices(AsyncWebServerRequest *request) {
   deviceList += "<tr><th>IP Address</th><th>Action</th></tr>\n";
 
   // Display stored MAC addresses and IP addresses
-  for (const ConnectedDevice& device : connectedDevices) {
+  for (const ConnectedDevice &device : connectedDevices) {
     deviceList += "<tr><td>" + device.ipAddress + "</td><td><button onclick=\"callCapture('" + device.ipAddress + "')\">Capture</button></td></tr>\n";
   }
 

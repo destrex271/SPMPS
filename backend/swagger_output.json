@@ -338,7 +338,7 @@
       }
     },
     "/endSession/{lot_id}": {
-      "post": {
+      "put": {
         "description": "",
         "parameters": [
           {
@@ -467,24 +467,6 @@
             "name": "authorization",
             "in": "header",
             "type": "string"
-          },
-          {
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "sessionActive": {
-                  "example": "any"
-                },
-                "endTime": {
-                  "example": "any"
-                },
-                "sessionId": {
-                  "example": "any"
-                }
-              }
-            }
           }
         ],
         "responses": {
