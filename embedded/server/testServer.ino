@@ -32,7 +32,7 @@ std::vector<ConnectedDevice> connectedDevices;
 void setup() {
   Serial.begin(115200);
 
-  WiFi.begin("thisiswhat", "");
+  WiFi.begin("FBI", "");
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
@@ -109,49 +109,47 @@ void loop() {
   // TODO: Send Data to Slot detection API HERE
   String availableSlotsEndpoint = "https://spmps-1.onrender.com/lots/" + String(gatewayLotId) + "/available";
 
-  // camera_fb_t * fb = NULL;
+  camera_fb_t * fb = NULL;
   
-  // // Take a picture
-  // fb = esp_camera_fb_get();  
-  // if (!fb) {
-  //   Serial.println("Camera capture failed");
-  //   return;
-  // }
+  // Take a picture
+  fb = esp_camera_fb_get();  
+  if (!fb) {
+    Serial.println("Camera capture failed");
+    return;
+  }
 
   if (WiFi.status() == WL_CONNECTED) {
-    // HTTPClient http;
-    // http.begin(availableSlotsEndpoint);
-    // http.addHeader("Content-Type", "multipart/form-data");
+    HTTPClient http;
+    http.begin(availableSlotsEndpoint);
+    http.addHeader("Content-Type", "multipart/form-data");
 
-    // String boundary = "----ESP32Boundary";
-    // String contentType = "multipart/form-data; boundary=" + boundary;
-    // http.addHeader("Content-Type", contentType);
+    String boundary = "----ESP32Boundary";
+    String contentType = "multipart/form-data; boundary=" + boundary;
+    http.addHeader("Content-Type", contentType);
 
-    // String body = "--" + boundary + "\r\n";
-    // body += "Content-Disposition: form-data; name=\"frame\"; filename=\"image.jpg\"\r\n";
-    // body += "Content-Type: image/jpeg\r\n\r\n";
+    String body = "--" + boundary + "\r\n";
+    body += "Content-Disposition: form-data; name=\"frame\"; filename=\"image.jpg\"\r\n";
+    body += "Content-Type: image/jpeg\r\n\r\n";
 
-    // int imageLen = fb->len;
-    // int bodyLen = body.length() + imageLen + 6 + boundary.length() + 4;
+    int imageLen = fb->len;
+    int bodyLen = body.length() + imageLen + 6 + boundary.length() + 4;
 
-    // http.addHeader("Content-Length", String(bodyLen));
+    http.addHeader("Content-Length", String(bodyLen));
 
-    // WiFiClient * stream = http.getStreamPtr();
-    // stream->print(body);
-    // stream->write(fb->buf, fb->len);
-    // stream->print("\r\n--" + boundary + "--\r\n");
+    WiFiClient * stream = http.getStreamPtr();
+    stream->print(body);
+    stream->write(fb->buf, fb->len);
+    stream->print("\r\n--" + boundary + "--\r\n");
 
-    // int httpResponseCode = http.sendRequest("PUT", (uint8_t *)NULL, 0);
-    // if (httpResponseCode > 0) {
-    if (true) {
-      // Serial.printf("PUT Response code: %d\n", httpResponseCode);
+    int httpResponseCode = http.sendRequest("PUT", (uint8_t *)NULL, 0);
+    if (httpResponseCode > 0) {
+      Serial.printf("PUT Response code: %d\n", httpResponseCode);
 
-      // Read the response
-      // String response = http.getString();
-      // Serial.println("Response: " + response);
+      Read the response
+      String response = http.getString();
+      Serial.println("Response: " + response);
 
-      // Parse the response (assuming it's a simple JSON with a field `slot_state`)
-      // int slotState = response.toInt();  // Simplified, consider parsing full JSON for complex responses
+      int slotState = response.toInt();  // Simplified, consider parsing full JSON for complex responses
       int slotState = -1;
       if (slotState > 0) {
         Serial.println("New car detected. Starting session...");
@@ -165,13 +163,15 @@ void loop() {
 
     } else {
       Serial.print("Prob");
-      // Serial.printf("Error on sending PUT: %s\n", http.errorToString(httpResponseCode).c_str());
+      Serial.printf("Error on sending PUT: %s\n", http.errorToString(httpResponseCode).c_str());
     }
 
-    // http.end();
+    http.end();
   }
 
-  // esp_camera_fb_return(fb); 
+  esp_camera_fb_return(fb);
+  delay(5000);
+  Serial.print("Beginning next cycle>>>\n"); 
 }
 
 void startSession(){
