@@ -50,7 +50,12 @@ class DB:
             conn = self.__get_connection()
             cursor = conn.cursor()
             cursor.execute(stmnt)
-            res = cursor.fetchmany()
+
+            if stmnt.strip().upper().startswith(("UPDATE", "INSERT", "DELETE")):
+                conn.commit()
+
+            res = cursor.fetchmany() if cursor.description else None
+            # res = cursor.fetchmany()
             cursor.close()
             self.__return_connection(conn)
             return res
