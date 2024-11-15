@@ -4,39 +4,38 @@
 #include <HTTPClient.h>
 #include <esp_task_wdt.h>
 #include <esp_camera.h>
-#include <base64.h>  // Ensure this library is included for base64 encoding
+#include <base64.h>  
 #include <ESPAsyncWebServer.h>
 #include <vector>
 #include "SPIFFS.h"
 
-#define PWDN_GPIO_NUM     -1
-#define RESET_GPIO_NUM    -1
-#define XCLK_GPIO_NUM      0
-#define SIOD_GPIO_NUM     26
-#define SIOC_GPIO_NUM     27
-#define Y9_GPIO_NUM       35
-#define Y8_GPIO_NUM       34
-#define Y7_GPIO_NUM       39
-#define Y6_GPIO_NUM       36
-#define Y5_GPIO_NUM       21
-#define Y4_GPIO_NUM       19
-#define Y3_GPIO_NUM       18
-#define Y2_GPIO_NUM        5
-#define VSYNC_GPIO_NUM    25
-#define HREF_GPIO_NUM     23
-#define PCLK_GPIO_NUM     22
+#define PWDN_GPIO_NUM  32
+#define RESET_GPIO_NUM -1
+#define XCLK_GPIO_NUM  0
+#define SIOD_GPIO_NUM  26
+#define SIOC_GPIO_NUM  27
+#define Y9_GPIO_NUM    35
+#define Y8_GPIO_NUM    34
+#define Y7_GPIO_NUM    39
+#define Y6_GPIO_NUM    36
+#define Y5_GPIO_NUM    21
+#define Y4_GPIO_NUM    19
+#define Y3_GPIO_NUM    18
+#define Y2_GPIO_NUM    5
+#define VSYNC_GPIO_NUM 25
+#define HREF_GPIO_NUM  23
+#define PCLK_GPIO_NUM  22
+#define LED_GPIO_NUM   4
 
-/* Put your SSID & Password */
-const char* ssid = "ESP32";  // Enter SSID here
-const char* password = "12345678";  // Enter Password here
+
+const char* ssid = "ESP32"; 
+const char* password = "12345678";  
 const int gatewayLotId = 1;
 
-/* Put IP Address details */
 IPAddress local_ip(192,168,1,1);
 IPAddress gateway(192,168,1,1);
 IPAddress subnet(255,255,255,0);
 
-// Create an AsyncWebServer object on port 80
 AsyncWebServer server(80);
 
 struct ConnectedDevice {
@@ -99,6 +98,7 @@ void setup() {
     Serial.print(".");
   }
   Serial.println("Connected to WiFi");
+
 
   // Register Parking Slot
   
@@ -163,12 +163,11 @@ void setup() {
 
 void loop() {
   // Nothing to do here
-  Serial.println("Waiting.....");
   // const int numDevices = sizeof(connectedDevices) / sizeof(connectedDevices[0]);
   // if(numDevices > 0) Serial.println(numDevices);
 
   // TODO: Send Data to Slot detection API HERE
-  String availableSlotsEndpoint = "https://spmps-1.onrender.com/lots/" + String(gatewayLotId) + "/available";
+  String availableSlotsEndpoint = "http://192.168.9.146:5000/lots/" + String(gatewayLotId) + "/available";
 
   camera_fb_t * fb = NULL;
   
@@ -178,16 +177,17 @@ void loop() {
 
   fb = esp_camera_fb_get();  
   if (!fb) {
-    Serial.println("Camera capture failed");
+    Serial.println("Camera capture failed\n");
     return;
-  }
+  } else Serial.print("Capture success!\n");
 
   if (WiFi.status() == WL_CONNECTED) {
-    HTTPClient http;
-    http.begin(availableSlotsEndpoint);
-    http.addHeader("Content-Type", "multipart/form-data");
 
-    String boundary = "----ESP32Boundary";
+    HTTPClient http;
+    http.setTimeout(15000);  
+    http.begin(availableSlotsEndpoint);
+
+    String boundary = "----ESP32BoundaryJSBFVCjbfwipbJBE";
     String contentType = "multipart/form-data; boundary=" + boundary;
     http.addHeader("Content-Type", contentType);
 
@@ -195,17 +195,36 @@ void loop() {
     body += "Content-Disposition: form-data; name=\"frame\"; filename=\"image.jpg\"\r\n";
     body += "Content-Type: image/jpeg\r\n\r\n";
 
-    int imageLen = fb->len;
-    int bodyLen = body.length() + imageLen + 6 + boundary.length() + 4;
+    String imageData = "";
+    imageData.reserve(fb->len);
+    for (int i = 0; i < fb->len; i++) {
+        imageData += (char)fb->buf[i];
+    }
+    body += imageData;
+    body += "\r\n--" + boundary + "--\r\n";
 
-    http.addHeader("Content-Length", String(bodyLen));
+    http.addHeader("Content-Length", String(body.length()));
 
-    WiFiClient * stream = http.getStreamPtr();
-    stream->print(body);
-    stream->write(fb->buf, fb->len);
-    stream->print("\r\n--" + boundary + "--\r\n");
+    // int imageLen = fb->len;
+    // int bodyLen = body.length() + imageLen + 6 + boundary.length() + 4;
 
-    int httpResponseCode = http.sendRequest("PUT", (uint8_t *)NULL, 0);
+    // http.addHeader("Content-Length", String(bodyLen));
+
+    // WiFiClient * stream = http.getStreamPtr();
+    // if (!stream) Serial.print("No stream was returned!");
+    // stream->print(body);
+    // stream->write(fb->buf, fb->len);
+    // stream->print("\r\n--" + boundary + "--\r\n");
+
+
+    Serial.print("Sending request...\n");
+
+    int httpResponseCode = http.sendRequest("PUT", (uint8_t*)body.c_str(), body.length());
+
+    // int httpResponseCode = http.sendRequest("PUT", (uint8_t *)NULL, 0);
+
+    Serial.print("Request sent!\n");
+
     if (httpResponseCode > 0) {
       Serial.printf("PUT Response code: %d\n", httpResponseCode);
 
@@ -257,7 +276,7 @@ void startSession(){
                     imageData += (char)stream->read();
                 }
 
-                String uploadUrl = "https://spmps.onrender.com/upload"; // Replace with your Node.js API URL
+                String uploadUrl = "https://spmps.onrender.com/upload"; 
                 HTTPClient uploadHttp;
                 uploadHttp.begin(uploadUrl);
 
