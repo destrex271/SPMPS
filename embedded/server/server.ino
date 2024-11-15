@@ -40,7 +40,7 @@ AsyncWebServer server(80);
 
 struct ConnectedDevice {
   String macAddress;
-  String ipAddress;  // Will be updated when devices connect
+  String ipAddress;  
 };
 
 std::vector<ConnectedDevice> connectedDevices;
