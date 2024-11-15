@@ -208,7 +208,6 @@ app.post('/upload', async (req, res) => {
   image.mv(uploadPath, async (err) => {
     if (err) {
       return res.status(500).send(err);
-      console.log(err);
     }
 
     const __filename = fileURLToPath(import.meta.url);
