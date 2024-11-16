@@ -20,8 +20,9 @@ def hello_world():
 @app.route("/lots/<lot_id>/available", methods=["PUT"])
 def detect_slots(lot_id):
 
+    print("Started")
     cur_val = get_current_slots_for_ploc(lot_id)
-    print(cur_val)
+    print("Available slots before processing:", cur_val)
 
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'} 
 
@@ -43,7 +44,6 @@ def detect_slots(lot_id):
 
     spots = get_spots(mask)
     available = get_lot_state(spots, frame)
-    print(available)
     
     # if > 0 -> New Car
     # if == 0 -> No Change
@@ -51,13 +51,15 @@ def detect_slots(lot_id):
 
     #update number of valid slots in the database for that lot id 
     try:
-        db.executeSQL("UPDATE plocation SET available_slots=" + str(available) + " WHERE location_id=" + str(lot_id) + ";")
+        print("Available slots after processing", available)
+        db.executeSQL(f"UPDATE plocation SET available_slots={available} WHERE location_id={lot_id};")
+        print("Ended")
         return str(available - cur_val)
     except Exception as e:
         print(e)
         return jsonify({'error': "Unable to update database!"}), 500
     
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # Get the port from the environment, default to 5000
+    port = int(os.environ.get("PORT", 5000))  
     app.run(host='0.0.0.0', port=port, debug=True)
 

@@ -32,7 +32,7 @@ std::vector<ConnectedDevice> connectedDevices;
 void setup() {
   Serial.begin(115200);
 
-  WiFi.begin("thisiswhat", "");
+  WiFi.begin("oneplus", "");
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
