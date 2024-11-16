@@ -11,6 +11,7 @@ db = DB()
 
 def get_current_slots_for_ploc(ploc_id) -> int:
     res = db.executeSQL("SELECT available_slots FROM plocation WHERE location_id=" + str(ploc_id) + ";")
+    print(res)
     return res[0][0]
 
 @app.route("/")
@@ -44,6 +45,7 @@ def detect_slots(lot_id):
 
     spots = get_spots(mask)
     available = get_lot_state(spots, frame)
+    print(spots, available)
     
     # if > 0 -> New Car
     # if == 0 -> No Change
