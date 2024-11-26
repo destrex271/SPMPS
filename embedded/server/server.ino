@@ -166,6 +166,8 @@ void loop() {
   // const int numDevices = sizeof(connectedDevices) / sizeof(connectedDevices[0]);
   // if(numDevices > 0) Serial.println(numDevices);
 
+  sendVideoFeed();
+
   // TODO: Send Data to Slot detection API HERE
   String availableSlotsEndpoint = "http://192.168.9.146:5000/lots/" + String(gatewayLotId) + "/available";
 
@@ -231,17 +233,17 @@ void loop() {
       String response = http.getString();
       Serial.println("Response: " + response);
 
-      // int slotState = response.toInt();  // Simplified, consider parsing full JSON for complex responses
-      // int slotState = -1;
-      // if (slotState > 0) {
-      //   Serial.println("New car detected. Starting session...");
-      //   startSession();
-      // } else if (slotState < 0) {
-      //   Serial.println("Car left. Ending session...");
-      //   endSession();
-      // } else {
-      //   Serial.println("No change in slots.");
-      // }
+      int slotState = response.toInt();  // Simplified, consider parsing full JSON for complex responses
+      int slotState = -1;
+      if (slotState > 0) {
+          Serial.println("New car detected. Starting session...");
+          startSession();
+      } else if (slotState < 0) {
+          Serial.println("Car left. Ending session...");
+          endSession();
+      } else {
+          Serial.println("No change in slots.");
+      }
 
     } else {
       Serial.print("Prob");
@@ -256,7 +258,7 @@ void loop() {
 }
 
 
-void sendVideFeed(){
+void sendVideoFeed(){
     for (const ConnectedDevice& device : connectedDevices) {
         String deviceIp = device.ipAddress;
         String captureUrl = "http://" + deviceIp + "/capture";
