@@ -1,6 +1,6 @@
 // client.js
 import { io } from 'socket.io-client';
-const userId = "12"
+const userId = "temp@gmail.com"
 // Connect to the Socket.IO server
 const socket = io('http://localhost:3000',{
     query: {userId}
@@ -15,6 +15,11 @@ socket.on('connect', () => {
 socket.on('notification', (data) => {
     console.log('New Notification:', data);
 });
+
+
+socket.on('videofeed', (data) => {
+    console.log("New vid", data)
+})
 
 // Listen for disconnection events
 socket.on('disconnect', () => {
