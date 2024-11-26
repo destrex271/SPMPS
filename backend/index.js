@@ -81,6 +81,42 @@ const sendNotification = (targetUserId, title, messageBody) => {
   }
 };
 
+
+const sendVideoFeed = (targetUserId, title, messageBody, imagePath) => {
+  const targetSockets = userSockets.get(targetUserId); // Get the array of socket IDs for the target user
+
+  let imageData = null;
+  try {
+      // Read the image file and encode it as a Base64 string
+      const imageBuffer = fs.readFileSync(imagePath);
+      imageData = `data:image/${getImageType(imagePath)};base64,${imageBuffer.toString('base64')}`;
+  } catch (error) {
+      console.error(`Error reading image file: ${error.message}`);
+      imageData = null;
+  }
+
+  if (targetSockets && targetSockets.length > 0) {
+      const message = {
+          title: title,
+          body: messageBody,
+          image: imageData
+      };
+
+      // Emit the notification to all connected sockets for the user
+      targetSockets.forEach(socketId => {
+          socketIO.to(socketId).emit('videofeed', JSON.stringify(message));
+          console.log(`Video feed sent to ${targetUserId} on socket ${socketId}:`, JSON.stringify(message));
+      });
+  } else {
+      console.log(`User ${targetUserId} is not connected.`);
+  }
+};
+
+const getImageType = (imagePath) => {
+  const extension = imagePath.split('.').pop().toLowerCase();
+  return extension === 'jpg' ? 'jpeg' : extension; // Use 'jpeg' for 'jpg' files
+};
+
 app.use(fileUpload());
 app.use(cors())
 app.use('/doc', swaggerUi.serve, swaggerUi.setup(swaggerFile))
@@ -194,6 +230,51 @@ app.post("/createslot", async(req, res) => {
     res.json(data)
 })
 const __dirname = "uploads"
+
+
+app.post('/vid_monitor', async (req, res) => {
+  if (!req.files || Object.keys(req.files).length === 0) {
+    return res.status(400).send('No files were uploaded.');
+  }
+
+  const image = req.files.image; // Ensure 'image' matches the form field name
+  const uploadPath = path.join("uploads", `${Date.now()} - ${image.name}`); // Add timestamp for uniqueness
+
+  console.log(uploadPath);
+
+  image.mv(uploadPath, async (err) => {
+    if (err) {
+      return res.status(500).send(err);
+    }
+
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+
+    try {
+      // Call ANPR function to get license number
+      const data = await PromptGemini(__dirname + "/" + uploadPath);
+      const licenseNumber = data; // Assuming PromptGemini returns the license number
+
+      console.log("Registering", licenseNumber);
+
+      for(const licNum of licenseNumber){
+        const userId = await getUserFromVehicle(licNum) 
+        console.log(userId, __dirname + "/" + uploadPath)
+        sendVideoFeed(userId, "Session started for "+ licenseNumber, `Session has been started for your vehicle at parking location: #ADD LOCATION`, __dirname + "/" + uploadPath)
+      }
+
+      console.log("Removing image from local storage");
+      fs.rm(uploadPath, () => {
+        console.log("Removed image successfully");
+      });
+      return res.status(201).json({ message: "Sent Video Feed"});
+    } catch (err) {
+      console.error("Error processing the request:", err);
+      return res.status(500).json({ message: "Error processing request", err });
+    }
+  });
+});
+
 // ANPR API
 app.post('/upload', async (req, res) => {
   if (!req.files || Object.keys(req.files).length === 0) {
@@ -219,6 +300,12 @@ app.post('/upload', async (req, res) => {
       const licenseNumber = data; // Assuming PromptGemini returns the license number
 
       console.log("Registering", licenseNumber);
+
+      for(const licNum of licenseNumber){
+        const userId = await getUserFromVehicle(licNum) 
+        console.log(userId, __dirname + "/" + uploadPath)
+        sendVideoFeed(userId, "Session started for "+ licenseNumber, `Session has been started for your vehicle at parking location: #ADD LOCATION`, __dirname + "/" + uploadPath)
+      }
 
       // Prepare request object to simulate API call
       const sessionRequest = {
