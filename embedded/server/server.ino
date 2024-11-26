@@ -255,6 +255,72 @@ void loop() {
   
 }
 
+
+void sendVideFeed(){
+    for (const ConnectedDevice& device : connectedDevices) {
+        String deviceIp = device.ipAddress;
+        String captureUrl = "http://" + deviceIp + "/capture";
+        Serial.println(captureUrl);
+
+        if (WiFi.status() == WL_CONNECTED) {
+            HTTPClient http;
+            Serial.println("capturing ");
+            http.begin(captureUrl);
+            Serial.println(captureUrl);
+
+            int httpResponseCode = http.GET();
+            if (httpResponseCode > 0) {
+                // Read the image from the response
+                WiFiClient* stream = http.getStreamPtr();
+                String imageData = "";
+                while (stream->available()) {
+                    imageData += (char)stream->read();
+                }
+
+                String uploadUrl = "https://spmps.onrender.com/vid_monitor"; 
+                HTTPClient uploadHttp;
+                uploadHttp.begin(uploadUrl);
+
+                // Prepare the multipart/form-data content
+                String boundary = "----WebKitFormBoundary7MA4YWxkTrZu0gW"; // Random boundary
+                String body = "--" + boundary + "\r\n";
+                body += "Content-Disposition: form-data; name=\"image\"; filename=\"image_" + String(millis()) + ".jpg\"\r\n"; // Unique filename
+                body += "Content-Type: image/jpeg\r\n\r\n"; // Content type
+                body += imageData + "\r\n";
+                body += "--" + boundary + "--\r\n";
+
+                // Set the content type and content length
+                uploadHttp.addHeader("Content-Type", "multipart/form-data; boundary=" + boundary);
+                uploadHttp.addHeader("Content-Length", String(body.length()));
+
+                // Send the POST request
+                int uploadResponseCode = uploadHttp.POST(body);
+
+                if (uploadResponseCode > 0) {
+                    Serial.print("Upload response code: ");
+                    Serial.println(uploadResponseCode);
+                } else {
+                    Serial.print("Upload failed, error: ");
+                    Serial.println(uploadHttp.errorToString(uploadResponseCode).c_str());
+                }
+
+                uploadHttp.end();
+
+                // End
+                Serial.print("Image received from device ");
+                Serial.println(deviceIp);
+                // Serial.println(imageData);
+            } else {
+                Serial.print("Error on GET from device ");
+                Serial.println(deviceIp);
+                Serial.println(httpResponseCode);
+            }
+            http.end();
+        }
+        //delay(5000);
+    }
+}
+
 void startSession(){
   for (const ConnectedDevice& device : connectedDevices) {
         String deviceIp = device.ipAddress;
