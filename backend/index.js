@@ -62,13 +62,14 @@ socketIO.on('connection', (socket) => {
   });
 });
 
-const sendNotification = (targetUserId, title, messageBody) => {
+const sendNotification = (targetUserId, title, messageBody, amt) => {
   const targetSockets = userSockets.get(targetUserId); // Get the array of socket IDs for the target user
 
   if (targetSockets && targetSockets.length > 0) {
       const message = {
           title: title,
           body: messageBody,
+          amt: amt
       };
 
       // Emit the notification to all connected sockets for the user
@@ -337,7 +338,7 @@ app.post('/upload', async (req, res) => {
         const userId = await getUserFromVehicle(licNum) 
         console.log(userId)
 
-        sendNotification(userId, "Session started for "+ licenseNumber, `Session has been started for your vehicle at parking location: #ADD LOCATION`)
+        sendNotification(userId, "Session started for "+ licenseNumber, `Session has been started for your vehicle at parking location: #ADD LOCATION`, null)
       }
       return res.status(201).json({ message: "Session created", data: sessionResponse });
     } catch (err) {
@@ -429,7 +430,7 @@ app.put('/endSession/:lot_id', async (req, res) => {
       // Fetch User for this car and send notification to end session
       let user_id = await getUserFromVehicle(plate)
       console.log(`Bill for ${user_id} -> ${resp}`)
-      sendNotification(user_id, "Session Ended", "Session for your vehicle " + plate + " has ended. Tap to pay -> Rs. " + resp)
+      sendNotification(user_id, "Session Ended", "Session for your vehicle " + plate + " has ended. Tap to pay -> Rs. " + resp, resp)
     }
 
     // Return the list of detected license numbers and the ended sessions
