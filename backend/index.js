@@ -492,7 +492,7 @@ app.post("/addedSlaveDevice", authenticateToken, async(req, res) => {
 
 
 app.post("/send_notif", async(req, res) => {
-  sendNotification(req.body.userId, "Title", "Hello", 200)
+  sendNotification(req.body.userId, "Title", "Hello", 200.69696)
   res.sendStatus(200)
 })
 
