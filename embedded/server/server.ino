@@ -92,7 +92,7 @@ void setup() {
 
   initCamera();
 
-  WiFi.begin("rishabh", "");
+  WiFi.begin("thisiswhat", "");
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
@@ -166,10 +166,10 @@ void loop() {
   // const int numDevices = sizeof(connectedDevices) / sizeof(connectedDevices[0]);
   // if(numDevices > 0) Serial.println(numDevices);
 
-  sendVideoFeed();
+  // sendVideoFeed();
 
   // TODO: Send Data to Slot detection API HERE
-  String availableSlotsEndpoint = "http://192.168.9.146:5000/lots/" + String(gatewayLotId) + "/available";
+  String availableSlotsEndpoint = "https://spmps.onrender.com/lots/" + String(gatewayLotId) + "/available";
 
   camera_fb_t * fb = NULL;
   
@@ -233,8 +233,8 @@ void loop() {
       String response = http.getString();
       Serial.println("Response: " + response);
 
-      int slotState = response.toInt();  // Simplified, consider parsing full JSON for complex responses
-      int slotState = -1;
+      // int slotState = response.toInt();  // Simplified, consider parsing full JSON for complex responses
+      int slotState = 1;
       if (slotState > 0) {
           Serial.println("New car detected. Starting session...");
           startSession();
