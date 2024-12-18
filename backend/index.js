@@ -431,7 +431,7 @@ app.put('/endSession/:lot_id', async (req, res) => {
       
       // Fetch User for this car and send notification to end session
       let user_id = await getUserFromVehicle(plate)
-        if(userId === undefined) continue;
+        if(user_id === undefined) continue;
       console.log(`Bill for ${user_id} -> ${resp}`)
       sendNotification(user_id, "Session Ended", "Session for your vehicle " + plate + " has ended. Tap to pay -> Rs. " + resp, resp)
     }
