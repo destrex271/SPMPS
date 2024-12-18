@@ -92,7 +92,7 @@ void setup() {
 
   initCamera();
 
-  WiFi.begin("thisiswhat", "");
+  WiFi.begin("rishabh", "123456789");
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
