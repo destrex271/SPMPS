@@ -304,6 +304,7 @@ app.post('/upload', async (req, res) => {
 
       for(const licNum of licenseNumber){
         const userId = await getUserFromVehicle(licNum) 
+        if(userId === undefined) continue;
         console.log(userId, __dirname + "/" + uploadPath)
         sendVideoFeed(userId, "Session started for "+ licenseNumber, `Session has been started for your vehicle at parking location: #ADD LOCATION`, __dirname + "/" + uploadPath)
       }
@@ -336,6 +337,7 @@ app.post('/upload', async (req, res) => {
 
       for(const licNum of licenseNumber){
         const userId = await getUserFromVehicle(licNum) 
+        if(userId === undefined) continue;
         console.log(userId)
 
         sendNotification(userId, "Session started for "+ licenseNumber, `Session has been started for your vehicle at parking location: #ADD LOCATION`, null)
@@ -429,6 +431,7 @@ app.put('/endSession/:lot_id', async (req, res) => {
       
       // Fetch User for this car and send notification to end session
       let user_id = await getUserFromVehicle(plate)
+        if(userId === undefined) continue;
       console.log(`Bill for ${user_id} -> ${resp}`)
       sendNotification(user_id, "Session Ended", "Session for your vehicle " + plate + " has ended. Tap to pay -> Rs. " + resp, resp)
     }

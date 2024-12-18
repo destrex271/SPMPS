@@ -12,10 +12,14 @@ import {db} from './common.js'
 
 
 export const getUserFromVehicle = async (licNum) => {
-  console.log(licNum)
-  const res = await db("SELECT user_id FROM vehicle where plate_number=$1", [licNum])
-  console.log(res)
-  return res[0]['user_id']
+    try{
+      console.log(licNum)
+      const res = await db("SELECT user_id FROM vehicle where plate_number=$1", [licNum])
+      console.log(res)
+      return res[0]['user_id']
+    }catch (err) {
+        return undefined
+    }
 }
 
 export const createSession = async (req) => {
